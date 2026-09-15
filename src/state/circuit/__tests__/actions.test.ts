@@ -194,3 +194,70 @@ describe("pointer placement", () => {
     expect(lab.drag()).toBeUndefined();
   });
 });
+
+describe("canvas scrolling", () => {
+  const wheel = (deltaX: number, deltaY: number, options = {}) =>
+    ({
+      deltaX,
+      deltaY,
+      deltaMode: 0,
+      preventDefault: vi.fn(),
+      ...options,
+    }) as unknown as WheelEvent;
+
+  it("scrolls both axes without changing the circuit or undo history", () => {
+    const lab = createLab();
+    lab.example("series");
+    lab.setViewport({ width: 800, height: 600 });
+    const initial = lab.parts();
+    const history = lab.history();
+    lab.scroll(wheel(30, 40));
+    expect(lab.pan()).toEqual({ x: -30, y: -40 });
+    lab.scroll(wheel(0, 20, { shiftKey: true }));
+    expect(lab.pan()).toEqual({ x: -50, y: -40 });
+    expect(lab.parts()).toBe(initial);
+    expect(lab.history()).toBe(history);
+  });
+
+  it("reverses immediately after reaching a scroll limit", () => {
+    const lab = createLab();
+    lab.example("series");
+    lab.setViewport({ width: 800, height: 600 });
+    lab.scroll(wheel(10000, 10000));
+    const limit = lab.pan();
+    lab.scroll(wheel(-10, -10));
+    expect(lab.pan()).toEqual({ x: limit.x + 10, y: limit.y + 10 });
+  });
+
+  it("places components under the pointer after scrolling and zooming", () => {
+    const lab = createLab();
+    lab.example("series");
+    lab.setViewport({ width: 800, height: 600 });
+    lab.setZoom(0.5);
+    lab.scroll(wheel(40, 50));
+    lab.drop({
+      clientX: 200,
+      clientY: 150,
+      currentTarget: {
+        closest: () => ({
+          getBoundingClientRect: () => ({ left: 100, top: 50 }),
+        }),
+      },
+      dataTransfer: { getData: () => "resistor" },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent);
+    expect(lab.parts().at(-1)).toMatchObject({ x: 280, y: 300 });
+  });
+
+  it("resets scrolling when loading an experiment or clearing", () => {
+    const lab = createLab();
+    lab.example("series");
+    lab.setViewport({ width: 800, height: 600 });
+    lab.scroll(wheel(40, 50));
+    lab.example("parallel");
+    expect(lab.pan()).toEqual({ x: 0, y: 0 });
+    lab.scroll(wheel(40, 50));
+    lab.clear();
+    expect(lab.pan()).toEqual({ x: 0, y: 0 });
+  });
+});

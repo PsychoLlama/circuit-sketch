@@ -1,12 +1,51 @@
 import { onMount, onCleanup } from "solid-js";
-import { listenForKeys, pinAt } from "./effects";
-import { catalog, defaults, createFormulas } from "./formulas";
+import { listenForKeys, pinAt, observeCanvas } from "./effects";
+import {
+  catalog,
+  defaults,
+  createFormulas,
+  circuitBounds,
+  constrainOffset,
+} from "./formulas";
 import { type Kind } from "../../lib/circuit/solver";
 import { createData, type Part } from "./data";
 
 export const createLab = () => {
   const d = createData();
   let serial = 0;
+  const pan = () =>
+    constrainOffset(
+      d.offset(),
+      circuitBounds(d.parts()),
+      d.zoom(),
+      d.viewport(),
+    );
+
+  const bindCanvas = (canvas: SVGSVGElement) => {
+    onMount(() => onCleanup(observeCanvas(canvas, d.setViewport)));
+  };
+
+  const scroll = (e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    if (d.drag() || d.pinDrag()) return;
+
+    const scale =
+      e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? d.viewport().height : 1;
+    const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX;
+    const dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY;
+    const current = pan();
+    d.setOffset(
+      constrainOffset(
+        { x: current.x - dx * scale, y: current.y - dy * scale },
+        circuitBounds(d.parts()),
+        d.zoom(),
+        d.viewport(),
+      ),
+    );
+    d.setHover(undefined);
+    if (d.pending()) d.setPreview(coords(e));
+  };
   const {
     solution,
     selectedPart: selected,
@@ -70,8 +109,8 @@ export const createLab = () => {
     const rect = svg.getBoundingClientRect();
 
     return {
-      x: (e.clientX - rect.left) / d.zoom(),
-      y: (e.clientY - rect.top) / d.zoom(),
+      x: (e.clientX - rect.left - pan().x) / d.zoom(),
+      y: (e.clientY - rect.top - pan().y) / d.zoom(),
     };
   };
 
@@ -273,6 +312,7 @@ export const createLab = () => {
     d.setSelected(r.id);
     choose("select");
     d.setZoom(1);
+    d.setOffset({ x: 0, y: 0 });
   };
 
   const undo = () => {
@@ -351,6 +391,9 @@ export const createLab = () => {
 
   return {
     ...d,
+    pan,
+    bindCanvas,
+    scroll,
     libraryDrag,
     drop,
     startPin,
@@ -376,6 +419,7 @@ export const createLab = () => {
     key,
     clear: () => {
       change([]);
+      d.setOffset({ x: 0, y: 0 });
       d.setSelected(undefined);
       choose("select");
     },

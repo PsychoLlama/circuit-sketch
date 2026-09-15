@@ -148,3 +148,41 @@ export const createFormulas = (d: ReturnType<typeof createData>) => {
 
   return { solution, selectedPart, hovered, point, path };
 };
+
+// Include terminal routing (24 units beyond the pins) and component labels.
+export const circuitBounds = (parts: Part[]) => {
+  const items = components(parts);
+
+  if (!items.length) return undefined;
+
+  return {
+    left: Math.min(...items.map((p) => p.x - 72)),
+    right: Math.max(...items.map((p) => p.x + 72)),
+    top: Math.min(...items.map((p) => p.y - 60)),
+    bottom: Math.max(...items.map((p) => p.y + 76)),
+  };
+};
+
+export const constrainOffset = (
+  offset: { x: number; y: number },
+  bounds: ReturnType<typeof circuitBounds>,
+  zoom: number,
+  viewport: { width: number; height: number },
+) => {
+  if (!bounds || !viewport.width || !viewport.height) return { x: 0, y: 0 };
+
+  const axis = (value: number, start: number, end: number, size: number) => {
+    // Keep 30% of the canvas covered, or the entire circuit if it is smaller.
+    const overlap = Math.min((end - start) * zoom, size * 0.3);
+
+    return Math.max(
+      overlap - end * zoom,
+      Math.min(size - overlap - start * zoom, value),
+    );
+  };
+
+  return {
+    x: axis(offset.x, bounds.left, bounds.right, viewport.width),
+    y: axis(offset.y, bounds.top, bounds.bottom, viewport.height),
+  };
+};

@@ -15,6 +15,8 @@ export const createData = () => {
   const [pinDrag, setPinDrag] = createSignal<string>();
   const [preview, setPreview] = createSignal<{ x: number; y: number }>();
   const [labels, setLabels] = createSignal(true);
+  const [offset, setOffset] = createSignal({ x: 0, y: 0 });
+  const [viewport, setViewport] = createSignal({ width: 0, height: 0 });
   const [zoom, setZoom] = createSignal(1);
   const [history, setHistory] = createSignal<Part[][]>([]);
   const [future, setFuture] = createSignal<Part[][]>([]);
@@ -46,6 +48,10 @@ export const createData = () => {
     setHover,
     labels,
     setLabels,
+    offset,
+    setOffset,
+    viewport,
+    setViewport,
     zoom,
     setZoom,
     history,

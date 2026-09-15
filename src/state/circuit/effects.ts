@@ -9,3 +9,18 @@ export const pinAt = (x: number, y: number) =>
     .elementFromPoint(x, y)
     ?.closest("[data-pin]")
     ?.getAttribute("data-pin");
+
+export const observeCanvas = (
+  canvas: SVGSVGElement,
+  resize: (size: { width: number; height: number }) => void,
+) => {
+  const measure = () => {
+    const { width, height } = canvas.getBoundingClientRect();
+    resize({ width, height });
+  };
+  const observer = new ResizeObserver(measure);
+  observer.observe(canvas);
+  measure();
+
+  return () => observer.disconnect();
+};

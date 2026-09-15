@@ -57,6 +57,8 @@ const Editor = (props: { lab: Lab }) => {
           </span>
         </div>
         <svg
+          ref={lab.bindCanvas}
+          on:wheel={lab.scroll}
           class="circuit-canvas"
           aria-label="Circuit canvas"
           onClick={lab.canvas}
@@ -69,6 +71,8 @@ const Editor = (props: { lab: Lab }) => {
           <defs>
             <pattern
               id="grid"
+              x={lab.pan().x}
+              y={lab.pan().y}
               width={20 * lab.zoom()}
               height={20 * lab.zoom()}
               patternUnits="userSpaceOnUse"
@@ -77,7 +81,9 @@ const Editor = (props: { lab: Lab }) => {
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
-          <g transform={`scale(${lab.zoom()})`}>
+          <g
+            transform={`translate(${lab.pan().x} ${lab.pan().y}) scale(${lab.zoom()})`}
+          >
             <Show when={lab.pending() && lab.preview()}>
               <path
                 class="wire-preview"
@@ -209,7 +215,7 @@ const Editor = (props: { lab: Lab }) => {
             {lab.pending()
               ? "Click a terminal to finish the wire"
               : lab.tool() === "select"
-                ? "Select & move"
+                ? "Scroll to pan · Shift + scroll for horizontal"
                 : lab.tool() === "wire"
                   ? "Click two terminals to connect"
                   : `Click canvas to place ${componentName(lab.tool())?.toLowerCase()}`}

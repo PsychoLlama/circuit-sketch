@@ -1,0 +1,282 @@
+import { For, Show } from "solid-js";
+import type { Lab } from "~/state/circuit/actions";
+import {
+  format,
+  partValue,
+  componentName,
+  components,
+  wires,
+  nodeCount,
+  powerBalance,
+} from "~/state/circuit/formulas";
+import Symbol from "./Symbol";
+
+const Editor = (props: { lab: Lab }) => {
+  const lab = props.lab;
+
+  return (
+    <section class="editor">
+      <div class="toolbar">
+        <div class="circuit-title">
+          <span class="circuit-dot" /> Untitled circuit{" "}
+          <span class="tag">DC</span>
+        </div>
+        <div class="toolbar-actions">
+          <button
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            disabled={!lab.history().length}
+            onClick={lab.undo}
+          >
+            ↶
+          </button>
+          <button
+            title="Redo"
+            aria-label="Redo"
+            disabled={!lab.future().length}
+            onClick={lab.redo}
+          >
+            ↷
+          </button>
+          <span class="separator" />
+          <button
+            class={lab.labels() ? "toggled" : ""}
+            onClick={() => lab.setLabels(!lab.labels())}
+          >
+            Readings
+          </button>
+          <button disabled={!lab.parts().length} onClick={lab.clear}>
+            Clear
+          </button>
+        </div>
+      </div>
+      <div class={`canvas-wrap ${lab.tool() !== "select" ? "placing" : ""}`}>
+        <div class="canvas-caption">
+          <span class="eyebrow">WORKSPACE</span>
+          <span>
+            {components(lab.parts()).length} components ·{" "}
+            {wires(lab.parts()).length} wires
+          </span>
+        </div>
+        <svg
+          class="circuit-canvas"
+          aria-label="Circuit canvas"
+          onClick={lab.canvas}
+          onPointerMove={lab.move}
+          onPointerUp={lab.endDrag}
+          onPointerCancel={lab.endDrag}
+        >
+          <defs>
+            <pattern
+              id="grid"
+              width={20 * lab.zoom()}
+              height={20 * lab.zoom()}
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="1" cy="1" r="0.8" fill="#cdd2d2" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+          <g transform={`scale(${lab.zoom()})`}>
+            <For each={wires(lab.parts())}>
+              {(p) => (
+                <g
+                  data-part={p.id}
+                  class={`wire ${lab.selected() === p.id ? "selected" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    lab.setSelected(p.id);
+                  }}
+                  onPointerEnter={(e) =>
+                    lab.setHover({ id: p.id, x: e.clientX, y: e.clientY })
+                  }
+
+                  onPointerLeave={() => lab.setHover(undefined)}
+                >
+                  <path class="wire-hit" d={lab.path(p)} />
+                  <path class="wire-line" d={lab.path(p)} />
+                  <Show when={lab.labels() && lab.solution().readings[p.id]}>
+                    <text
+                      class="wire-reading"
+                      x={(lab.point(p.a).x + lab.point(p.b).x) / 2 + 8}
+                      y={(lab.point(p.a).y + lab.point(p.b).y) / 2 - 8}
+                    >
+                      {format(lab.solution().readings[p.id]?.current, "A")}
+                    </text>
+                  </Show>
+                </g>
+              )}
+            </For>
+            <For each={components(lab.parts())}>
+              {(p) => (
+                <g
+                  data-part={p.id}
+                  transform={`translate(${p.x} ${p.y})`}
+                  class={`circuit-part ${lab.selected() === p.id ? "selected" : ""}`}
+                  onPointerDown={(e) => lab.startDrag(e, p)}
+                  onDblClick={() => {
+                    if (p.kind === "switch")
+                      lab.update(p.id, { closed: !p.closed });
+                  }}
+                  onPointerEnter={(e) =>
+                    lab.setHover({ id: p.id, x: e.clientX, y: e.clientY })
+                  }
+
+                  onPointerLeave={() => lab.setHover(undefined)}
+                >
+                  <rect
+                    class="part-bg"
+                    x="-57"
+                    y="-33"
+                    width="114"
+                    height="66"
+                    rx="7"
+                  />
+                  <text class="part-id" x="0" y="-43">
+                    {p.id}
+                  </text>
+                  <Symbol kind={p.kind} closed={p.closed} />
+                  <text class="part-value" x="0" y="52">
+                    {partValue(p)}
+                  </text>
+                  <Show when={lab.labels() && lab.solution().readings[p.id]}>
+                    <text class="part-reading" x="0" y="70">
+                      {format(lab.solution().readings[p.id]?.voltage, "V")} ·{" "}
+                      {format(lab.solution().readings[p.id]?.current, "A")}
+                    </text>
+                  </Show>
+                  <For each={["a", "b"] as const}>
+                    {(side) => (
+                      <g
+                        data-pin={p[side]}
+                        class={`pin ${lab.pending() === p[side] ? "pending" : ""}`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          lab.pin(p[side]);
+                        }}
+                      >
+                        <circle
+                          class="pin-hit"
+                          cx={side === "a" ? -48 : 48}
+                          r="12"
+                        />
+                        <circle cx={side === "a" ? -48 : 48} r="4" />
+                        <text x={side === "a" ? -48 : 48} y="-13">
+                          {side.toUpperCase()}
+                        </text>
+                      </g>
+                    )}
+                  </For>
+                </g>
+              )}
+            </For>
+          </g>
+        </svg>
+        <Show when={!lab.parts().length && lab.tool() === "select"}>
+          <div class="empty-canvas">
+            <div class="empty-schematic">
+              <svg viewBox="0 0 180 90">
+                <path d="M20 45H60M120 45H160" />
+                <circle cx="20" cy="45" r="4" />
+                <circle cx="160" cy="45" r="4" />
+                <rect x="60" y="20" width="60" height="50" rx="6" />
+                <path d="M80 45h20m-10-10v20" />
+              </svg>
+            </div>
+            <span class="eyebrow">A LITTLE CURIOSITY. A CLOSED LOOP.</span>
+            <h1>Make electricity make sense.</h1>
+            <p>
+              Build a circuit and see what’s happening
+              <br />
+              at every connection. No breadboard required.
+            </p>
+            <button class="primary" onClick={() => lab.choose("source")}>
+              + Place your first source
+            </button>
+            <button class="text-button" onClick={() => lab.example("series")}>
+              Or explore a working circuit <span>↗</span>
+            </button>
+          </div>
+        </Show>
+        <div class="canvas-bottom">
+          <div class="mode-pill">
+            <span class="accent-text">
+              {lab.tool() === "select" ? "↖" : "+"}
+            </span>
+            {lab.pending()
+              ? "Click a terminal to finish the wire"
+              : lab.tool() === "select"
+                ? "Select & move"
+                : lab.tool() === "wire"
+                  ? "Click two terminals to connect"
+                  : `Click canvas to place ${componentName(lab.tool())?.toLowerCase()}`}
+            <Show when={lab.tool() !== "select"}>
+              <button onClick={() => lab.choose("select")}>Esc</button>
+            </Show>
+          </div>
+          <div class="zoom">
+            <button
+              aria-label="Zoom out"
+              disabled={lab.zoom() <= 0.5}
+              onClick={() => lab.setZoom((z) => Math.max(0.5, z - 0.1))}
+            >
+              −
+            </button>
+            <button title="Reset zoom" onClick={() => lab.setZoom(1)}>
+              {Math.round(lab.zoom() * 100)}%
+            </button>
+            <button
+              aria-label="Zoom in"
+              disabled={lab.zoom() >= 1.5}
+              onClick={() => lab.setZoom((z) => Math.min(1.5, z + 0.1))}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class={`solver-panel ${lab.solution().error ? "has-error" : ""}`}>
+        <div class="solver-heading">
+          <span class="status-dot" />
+          <strong>
+            {lab.solution().error
+              ? "Circuit needs attention"
+              : lab.parts().length
+                ? "Circuit solved"
+                : "Ready when you are"}
+          </strong>
+          <span>DC OPERATING POINT</span>
+        </div>
+        <p>
+          {lab.solution().error ??
+            (lab.parts().length
+              ? "Every change recalculates terminal voltages and branch currents. Double-click a switch to toggle it."
+              : "Start with a source and a resistor. Connect their terminals into a closed path to let current flow.")}
+        </p>
+        <div class="solver-facts">
+          <span>
+            Reference{" "}
+            <b>
+              {lab.solution().reference ?? "—"}
+              {lab.solution().reference ? " = 0 V" : ""}
+            </b>
+          </span>
+          <span>
+            Nodes <b>{nodeCount(lab.solution())}</b>
+          </span>
+          <span>
+            Power balance{" "}
+            <b>
+              {lab.solution().error || !lab.parts().length
+                ? "—"
+                : powerBalance(lab.solution())}
+            </b>
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default Editor;

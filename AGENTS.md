@@ -22,6 +22,15 @@
   - Per-route wrappers. Thin. Delegates to `components`.
 - `__tests__/`: co-located with files they test. `foo.ts` gets `__tests__/foo.test.ts`.
 
+## Checks
+
+- `pnpm check`: runs all checks below.
+- `pnpm typecheck`: TypeScript, no emit.
+- `pnpm test`: Vitest, single run.
+- `pnpm fmt:check`: formatting check.
+- `pnpm fmt`: format files. (Automatic via agent post-edit hooks.)
+- `pnpm build`: production build.
+
 ## Rules
 
 - Use Nix for the dev environment.

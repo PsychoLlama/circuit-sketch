@@ -12,7 +12,10 @@
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fmt": "treefmt",
+    "fmt:check": "treefmt --fail-on-change",
+    "check": "./bin/run-tests"
   },
   "dependencies": {
     "@solidjs/router": "1.0.0",

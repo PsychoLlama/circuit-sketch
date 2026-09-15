@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -e
+
+pnpm run typecheck || fail=1
+pnpm run test || fail=1
+pnpm run fmt:check || fail=1
+pnpm run build || fail=1
+
+if [[ -n "$fail" ]]; then
+  exit 1
+fi

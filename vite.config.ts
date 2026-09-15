@@ -4,5 +4,13 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [tailwindcss(), solidStart(), nitro()],
+  plugins: [
+    tailwindcss(),
+    solidStart({
+      // Suppresses the dev toolbar overlay pinned to every dev page. Uncaught
+      // errors still surface via the plain error boundary and console.
+      devOverlay: false,
+    }),
+    nitro(),
+  ],
 });

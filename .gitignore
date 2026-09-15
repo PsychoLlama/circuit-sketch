@@ -5,3 +5,4 @@ node_modules/
 .solid/
 dist/
 coverage/
+.vitest/

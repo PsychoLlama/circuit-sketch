@@ -7,4 +7,5 @@ includes = ["*.nix"]
 [formatter.prettier]
 command = "prettier"
 options = ["--write"]
-includes = ["*.md"]
+includes = ["*.md", "*.ts", "*.tsx", "*.css", "*.json", "*.yaml"]
+excludes = ["pnpm-lock.yaml", "node_modules/**", ".output/**", ".nitro/**", "dist/**"]

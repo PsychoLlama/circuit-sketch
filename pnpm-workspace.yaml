@@ -1,0 +1,7 @@
+# No dependency build scripts are approved. Ask the user before adding approvals.
+allowBuilds: {}
+minimumReleaseAgeExclude:
+  - "@vitest/mocker@5.0.1"
+  - "@vitest/spy@5.0.1"
+  - vitest@5.0.1
+strictDepBuilds: true

@@ -146,3 +146,51 @@ describe("editor shortcuts", () => {
     expect(lab.selected()).toBeUndefined();
   });
 });
+
+describe("pointer placement", () => {
+  it("drops onto an occupied canvas at zoom-adjusted, snapped coordinates", () => {
+    const lab = createLab();
+    lab.example("series");
+    lab.setZoom(0.5);
+    lab.drop({
+      clientX: 251,
+      clientY: 151,
+      currentTarget: {
+        closest: () => ({
+          getBoundingClientRect: () => ({ left: 100, top: 50 }),
+        }),
+      },
+      target: { closest: () => ({}) },
+      dataTransfer: { getData: () => "capacitor" },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent);
+    expect(lab.parts().at(-1)).toMatchObject({
+      kind: "capacitor",
+      x: 300,
+      y: 200,
+    });
+    lab.undo();
+    expect(lab.parts()).toHaveLength(6);
+  });
+
+  it("restores a cancelled component drag without adding history", () => {
+    const lab = createLab();
+    lab.example("series");
+    const before = lab.parts();
+    const count = lab.history().length;
+    const part = before[0];
+    lab.setDrag({
+      id: part.id,
+      x: part.x,
+      y: part.y,
+      px: part.x,
+      py: part.y,
+      before,
+    });
+    lab.setParts(before.map((p) => ({ ...p, x: p.x + 100 })));
+    lab.cancelDrag();
+    expect(lab.parts()).toEqual(before);
+    expect(lab.history()).toHaveLength(count);
+    expect(lab.drag()).toBeUndefined();
+  });
+});

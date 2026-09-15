@@ -75,31 +75,38 @@ export const createLab = () => {
     };
   };
 
+  const place = (kind: Kind, e: MouseEvent) => {
+    const pos = coords(e);
+
+    if (!pos) return;
+
+    const p = make(
+      kind,
+      Math.max(60, Math.round(pos.x / 20) * 20),
+      Math.max(60, Math.round(pos.y / 20) * 20),
+    );
+    change([...d.parts(), p]);
+    d.setSelected(p.id);
+    choose("select");
+  };
+
   const canvas = (e: MouseEvent) => {
     if (d.suppressClick()) {
       d.setSuppressClick(false);
       return;
     }
+
     if ((e.target as Element).closest("[data-part], [data-pin]")) return;
 
     const kind = d.tool();
 
     if (kind !== "select" && kind !== "wire") {
-      const pos = coords(e);
-
-      if (!pos) return;
-
-      const p = make(
-        kind,
-        Math.round(pos.x / 20) * 20,
-        Math.round(pos.y / 20) * 20,
-      );
-      change([...d.parts(), p]);
-      d.setSelected(p.id);
-      choose("select");
+      place(kind, e);
     } else {
       d.setSelected(undefined);
+      d.setHover(undefined);
       d.setPending(undefined);
+      d.setPreview(undefined);
     }
   };
 
@@ -339,8 +346,7 @@ export const createLab = () => {
     const kind = e.dataTransfer?.getData("application/x-circuit-part") as Kind;
     if (!catalog.some((c) => c.kind === kind && kind !== "wire")) return;
     d.setSuppressClick(false);
-    choose(kind);
-    canvas(e);
+    place(kind, e);
   };
 
   return {

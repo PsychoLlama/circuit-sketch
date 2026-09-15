@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { solve, type Branch } from "../solver";
+
 const source: Branch = { id: "V", kind: "source", a: "p", b: "g", value: 12 };
 const r = (id: string, a: string, b: string, value: number): Branch => ({
   id,
@@ -8,18 +9,22 @@ const r = (id: string, a: string, b: string, value: number): Branch => ({
   b,
   value,
 });
+
 describe("DC circuit physics", () => {
   it("starts empty", () => expect(solve([]).readings).toEqual({}));
+
   it("solves Ohm’s law and delivered power", () => {
     const s = solve([source, r("R", "p", "g", 1000)]);
     expect(s.readings.R.current).toBeCloseTo(0.012);
     expect(s.readings.V.power).toBeCloseTo(-0.144);
   });
+
   it("solves a voltage divider", () => {
     const s = solve([source, r("R1", "p", "m", 1000), r("R2", "m", "g", 2000)]);
     expect(s.nodes.m).toBeCloseTo(8);
     expect(s.readings.R1.current).toBeCloseTo(0.004);
   });
+
   it("sums parallel currents and conserves energy", () => {
     const s = solve([source, r("R1", "p", "g", 1000), r("R2", "p", "g", 2000)]);
     expect(s.readings.V.current).toBeCloseTo(-0.018);
@@ -27,6 +32,7 @@ describe("DC circuit physics", () => {
       Object.values(s.readings).reduce((n, r) => n + r.power, 0),
     ).toBeCloseTo(0);
   });
+
   it("opens and closes ideal switches", () => {
     const b: Branch[] = [
       source,
@@ -38,6 +44,7 @@ describe("DC circuit physics", () => {
       solve(b.map((x) => ({ ...x, closed: true }))).readings.R.current,
     ).toBeCloseTo(0.012);
   });
+
   it("treats a capacitor as an open circuit at DC", () => {
     const s = solve([
       source,
@@ -47,6 +54,7 @@ describe("DC circuit physics", () => {
     expect(s.readings.C.voltage).toBeCloseTo(12);
     expect(s.readings.C.current).toBe(0);
   });
+
   it("measures ideal and resistive wire currents", () => {
     for (const value of [0, 2]) {
       const s = solve([
@@ -58,6 +66,7 @@ describe("DC circuit physics", () => {
       expect(s.readings.W.voltage).toBeCloseTo((value * 12) / (1000 + value));
     }
   });
+
   it("rejects shorted sources and redundant ideal loops", () => {
     expect(
       solve([source, { id: "W", kind: "wire", a: "p", b: "g", value: 0 }])
@@ -65,17 +74,21 @@ describe("DC circuit physics", () => {
     ).toBeTruthy();
     expect(solve([source, { ...source, id: "V2" }]).error).toBeTruthy();
   });
+
   it("does not invent voltages on floating nodes", () =>
     expect(solve([source, r("R", "x", "y", 100)]).error).toContain("Floating"));
+
   it("rejects invalid parameters", () => {
     for (const value of [0, -1, NaN, Infinity])
       expect(solve([source, r("R", "p", "g", value)]).error).toBeTruthy();
   });
+
   it("handles reversed polarity and arbitrary reference", () => {
     const s = solve([{ ...source, value: -5 }, r("R", "p", "g", 1000)], "p");
     expect(s.nodes.g).toBeCloseTo(5);
     expect(s.readings.R.current).toBeCloseTo(-0.005);
   });
+
   it("solves a balanced bridge with zero cross current", () => {
     const s = solve([
       source,
@@ -87,6 +100,7 @@ describe("DC circuit physics", () => {
     ]);
     expect(s.readings.e.current).toBeCloseTo(0);
   });
+
   it("retains tiny currents through large resistances", () =>
     expect(
       solve([source, r("R", "p", "g", 1e12)]).readings.R.current,

@@ -1,8 +1,11 @@
 import { createSignal } from "solid-js";
 import type { Branch, Kind } from "~/lib/circuit/solver";
+
 export type Part = Branch & { x: number; y: number };
+
 export type Hover = { id: string; x: number; y: number };
-export function createData() {
+
+export const createData = () => {
   const [parts, setParts] = createSignal<Part[]>([]);
   const [selected, setSelected] = createSignal<string>();
   const [pending, setPending] = createSignal<string>();
@@ -20,6 +23,7 @@ export function createData() {
     py: number;
     before: Part[];
   }>();
+
   return {
     parts,
     setParts,
@@ -42,4 +46,4 @@ export function createData() {
     drag,
     setDrag,
   };
-}
+};

@@ -1,4 +1,7 @@
 import CircuitLab from "~/components/circuit/Lab";
-export default function Home() {
+
+const Home = () => {
   return <CircuitLab />;
-}
+};
+
+export default Home;

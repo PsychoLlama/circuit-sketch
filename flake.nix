@@ -26,6 +26,8 @@
         system: pkgs: {
           default = pkgs.mkShell {
             packages = [
+              pkgs.nodejs_24
+              pkgs.pnpm
               pkgs.nixfmt
               pkgs.prettier
               pkgs.treefmt

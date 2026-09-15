@@ -11,12 +11,14 @@ const Library = (props: { lab: Lab }) => {
       <div class="panel-heading">
         COMPONENTS <span>05</span>
       </div>
-      <div class="library-intro">Pick a part. Place it. Connect it.</div>
+      <div class="library-intro">Drag a part onto the canvas.</div>
       <For each={catalog}>
         {(c) => (
           <button
             class={`part-button ${lab.tool() === c.kind ? "active" : ""}`}
             onClick={() => lab.choose(c.kind)}
+            draggable={c.kind !== "wire"}
+            onDragStart={(e) => lab.libraryDrag(e, c.kind)}
           >
             <svg viewBox="-55 -30 110 60">
               <Symbol kind={c.kind} closed={false} />

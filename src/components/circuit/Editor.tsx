@@ -6,8 +6,6 @@ import {
   componentName,
   components,
   wires,
-  nodeCount,
-  powerBalance,
 } from "~/state/circuit/formulas";
 import Symbol from "./Symbol";
 
@@ -31,7 +29,7 @@ const Editor = (props: { lab: Lab }) => {
             ↶
           </button>
           <button
-            title="Redo"
+            title="Redo (Ctrl+Shift+Z)"
             aria-label="Redo"
             disabled={!lab.future().length}
             onClick={lab.redo}
@@ -62,9 +60,11 @@ const Editor = (props: { lab: Lab }) => {
           class="circuit-canvas"
           aria-label="Circuit canvas"
           onClick={lab.canvas}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={lab.drop}
           onPointerMove={lab.move}
           onPointerUp={lab.endDrag}
-          onPointerCancel={lab.endDrag}
+          onPointerCancel={lab.cancelDrag}
         >
           <defs>
             <pattern
@@ -78,6 +78,12 @@ const Editor = (props: { lab: Lab }) => {
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
           <g transform={`scale(${lab.zoom()})`}>
+            <Show when={lab.pending() && lab.preview()}>
+              <path
+                class="wire-preview"
+                d={`M ${lab.point(lab.pending()!).x} ${lab.point(lab.pending()!).y} L ${lab.preview()!.x} ${lab.preview()!.y}`}
+              />
+            </Show>
             <For each={wires(lab.parts())}>
               {(p) => (
                 <g
@@ -114,10 +120,6 @@ const Editor = (props: { lab: Lab }) => {
                   transform={`translate(${p.x} ${p.y})`}
                   class={`circuit-part ${lab.selected() === p.id ? "selected" : ""}`}
                   onPointerDown={(e) => lab.startDrag(e, p)}
-                  onDblClick={() => {
-                    if (p.kind === "switch")
-                      lab.update(p.id, { closed: !p.closed });
-                  }}
                   onPointerEnter={(e) =>
                     lab.setHover({ id: p.id, x: e.clientX, y: e.clientY })
                   }
@@ -150,10 +152,10 @@ const Editor = (props: { lab: Lab }) => {
                       <g
                         data-pin={p[side]}
                         class={`pin ${lab.pending() === p[side] ? "pending" : ""}`}
-                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => lab.startPin(e, p[side])}
                         onClick={(e) => {
                           e.stopPropagation();
-                          lab.pin(p[side]);
+                          lab.setSuppressClick(false);
                         }}
                       >
                         <circle
@@ -234,45 +236,6 @@ const Editor = (props: { lab: Lab }) => {
               +
             </button>
           </div>
-        </div>
-      </div>
-      <div class={`solver-panel ${lab.solution().error ? "has-error" : ""}`}>
-        <div class="solver-heading">
-          <span class="status-dot" />
-          <strong>
-            {lab.solution().error
-              ? "Circuit needs attention"
-              : lab.parts().length
-                ? "Circuit solved"
-                : "Ready when you are"}
-          </strong>
-          <span>DC OPERATING POINT</span>
-        </div>
-        <p>
-          {lab.solution().error ??
-            (lab.parts().length
-              ? "Every change recalculates terminal voltages and branch currents. Double-click a switch to toggle it."
-              : "Start with a source and a resistor. Connect their terminals into a closed path to let current flow.")}
-        </p>
-        <div class="solver-facts">
-          <span>
-            Reference{" "}
-            <b>
-              {lab.solution().reference ?? "—"}
-              {lab.solution().reference ? " = 0 V" : ""}
-            </b>
-          </span>
-          <span>
-            Nodes <b>{nodeCount(lab.solution())}</b>
-          </span>
-          <span>
-            Power balance{" "}
-            <b>
-              {lab.solution().error || !lab.parts().length
-                ? "—"
-                : powerBalance(lab.solution())}
-            </b>
-          </span>
         </div>
       </div>
     </section>

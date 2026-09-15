@@ -5,7 +5,7 @@ import {
   type Solution,
   type Reading,
 } from "../../lib/circuit/solver";
-import type { Part, createData, Hover } from "./data";
+import type { Part, createData } from "./data";
 
 export const catalog: {
   kind: Kind;
@@ -113,11 +113,6 @@ export const powerBalance = (solution: Solution) =>
     ),
     "W",
   );
-
-export const hoverPosition = (hover: Hover) => ({
-  left: `${Math.min(hover.x + 18, typeof window === "undefined" ? 900 : window.innerWidth - 295)}px`,
-  top: `${Math.max(10, Math.min(hover.y + 20, typeof window === "undefined" ? 500 : window.innerHeight - 250))}px`,
-});
 
 export const createFormulas = (d: ReturnType<typeof createData>) => {
   const parts = d.parts;

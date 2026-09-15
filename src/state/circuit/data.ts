@@ -11,6 +11,9 @@ export const createData = () => {
   const [pending, setPending] = createSignal<string>();
   const [tool, setTool] = createSignal<Kind | "select">("select");
   const [hover, setHover] = createSignal<Hover>();
+  const [suppressClick, setSuppressClick] = createSignal(false);
+  const [pinDrag, setPinDrag] = createSignal<string>();
+  const [preview, setPreview] = createSignal<{ x: number; y: number }>();
   const [labels, setLabels] = createSignal(true);
   const [zoom, setZoom] = createSignal(1);
   const [history, setHistory] = createSignal<Part[][]>([]);
@@ -25,6 +28,12 @@ export const createData = () => {
   }>();
 
   return {
+    suppressClick,
+    setSuppressClick,
+    pinDrag,
+    setPinDrag,
+    preview,
+    setPreview,
     parts,
     setParts,
     selected,

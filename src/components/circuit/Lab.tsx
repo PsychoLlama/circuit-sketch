@@ -2,13 +2,12 @@ import { createLab } from "~/state/circuit/actions";
 import Library from "./Library";
 import Editor from "./Editor";
 import Inspector from "./Inspector";
-import HoverCard from "./HoverCard";
 
 const CircuitLab = () => {
   const lab = createLab();
 
   return (
-    <main class="app-shell" tabIndex={-1} onKeyDown={lab.key}>
+    <main class="app-shell" tabIndex={-1}>
       <header>
         <div class="brand">
           <span class="brand-mark">ϟ</span> current
@@ -32,12 +31,11 @@ const CircuitLab = () => {
           <span class="status-dot" /> All changes solve instantly
         </span>
         <span>
-          Click terminals to wire <i>·</i> Drag to move <i>·</i> Double-click
-          switches to toggle <i>·</i> Esc to cancel
+          Click or drag terminals to wire <i>·</i> Drag to move <i>·</i>{" "}
+          Backspace to delete <i>·</i> Esc to cancel
         </span>
         <span>IDEAL COMPONENTS / DC</span>
       </footer>
-      <HoverCard lab={lab} />
     </main>
   );
 };

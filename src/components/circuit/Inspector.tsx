@@ -11,10 +11,13 @@ const Inspector = (props: { lab: Lab }) => {
   return (
     <aside class="inspector">
       <div class="panel-heading">
-        INSPECTOR <span>Live measurements</span>
+        INSPECTOR{" "}
+        <span>
+          {lab.selected() ? "Selected · Esc to dismiss" : "Hover preview"}
+        </span>
       </div>
       <Show
-        when={lab.selectedPart()}
+        when={lab.inspectedPart()}
         fallback={
           <div class="inspector-empty">
             <div class="scope-icon">⌖</div>
@@ -82,51 +85,39 @@ const Inspector = (props: { lab: Lab }) => {
                   </select>
                 </label>
               </Show>
-              <Show
-                when={p().kind === "switch"}
-                fallback={
-                  <label>
-                    {p().kind === "source"
-                      ? "Voltage (V)"
-                      : p().kind === "capacitor"
-                        ? "Capacitance (F)"
-                        : "Resistance (Ω)"}
-                    <input
-                      aria-label="Component value"
-                      type="number"
-                      step="any"
-                      min={
-                        p().kind === "source"
-                          ? undefined
-                          : p().kind === "resistor"
-                            ? "0.000001"
-                            : "0"
-                      }
+              <Show when={p().kind !== "switch"}>
+                <label>
+                  {p().kind === "source"
+                    ? "Voltage (V)"
+                    : p().kind === "capacitor"
+                      ? "Capacitance (F)"
+                      : "Resistance (Ω)"}
+                  <input
+                    aria-label="Component value"
+                    type="number"
+                    step="any"
+                    min={
+                      p().kind === "source"
+                        ? undefined
+                        : p().kind === "resistor"
+                          ? "0.000001"
+                          : "0"
+                    }
 
-                      value={p().value}
-                      onInput={(e) => {
-                        const n = e.currentTarget.valueAsNumber;
+                    value={p().value}
+                    onInput={(e) => {
+                      const n = e.currentTarget.valueAsNumber;
 
-                        if (
-                          Number.isFinite(n) &&
-                          (p().kind === "source" ||
-                            n > 0 ||
-                            (p().kind === "wire" && n === 0))
-                        )
-                          lab.update(p().id, { value: n });
-                      }}
-                    />
-                  </label>
-                }
-              >
-                <button
-                  class="wide accent"
-                  onClick={() => lab.update(p().id, { closed: !p().closed })}
-                >
-                  {p().closed
-                    ? "● Closed — click to open"
-                    : "○ Open — click to close"}
-                </button>
+                      if (
+                        Number.isFinite(n) &&
+                        (p().kind === "source" ||
+                          n > 0 ||
+                          (p().kind === "wire" && n === 0))
+                      )
+                        lab.update(p().id, { value: n });
+                    }}
+                  />
+                </label>
               </Show>
               <Show when={p().kind === "wire"}>
                 <label>
@@ -145,6 +136,26 @@ const Inspector = (props: { lab: Lab }) => {
                 </label>
               </Show>
             </div>
+            <Show when={p().kind === "switch"}>
+              <div class="panel-section">
+                <span class="eyebrow">CONTROLS</span>
+                <label>
+                  Switch position
+                  <select
+                    aria-label="Switch position"
+                    value={p().closed ? "closed" : "open"}
+                    onChange={(e) =>
+                      lab.update(p().id, {
+                        closed: e.currentTarget.value === "closed",
+                      })
+                    }
+                  >
+                    <option value="closed">Closed</option>
+                    <option value="open">Open</option>
+                  </select>
+                </label>
+              </div>
+            </Show>
             <div class="panel-section">
               <span class="eyebrow">ELECTRICAL STATE</span>
               <Measurements lab={lab} part={p()} />
@@ -152,6 +163,31 @@ const Inspector = (props: { lab: Lab }) => {
                 Signed readings follow A → B. Negative current flows B → A.
                 Voltages use the source’s negative terminal as 0 V.
               </p>
+            </div>
+            <div class="panel-section">
+              <span class="eyebrow">INTERNAL STATE</span>
+              <dl class="measurements">
+                <div>
+                  <dt>Terminal A node</dt>
+                  <dd>{p().a}</dd>
+                </div>
+                <div>
+                  <dt>Terminal B node</dt>
+                  <dd>{p().b}</dd>
+                </div>
+                <Show when={p().kind === "switch"}>
+                  <div>
+                    <dt>Position</dt>
+                    <dd>{p().closed ? "Closed" : "Open"}</dd>
+                  </div>
+                </Show>
+                <Show when={p().kind === "capacitor"}>
+                  <div>
+                    <dt>State</dt>
+                    <dd>DC equilibrium</dd>
+                  </div>
+                </Show>
+              </dl>
             </div>
             <Show when={p().kind === "capacitor"}>
               <div class="notice">
@@ -165,7 +201,7 @@ const Inspector = (props: { lab: Lab }) => {
                 <div class="insert-buttons">
                   <For each={componentCatalog}>
                     {(c) => (
-                      <button onClick={() => lab.insert(c.kind)}>
+                      <button onClick={() => lab.insert(c.kind, p().id)}>
                         + Insert {c.name.toLowerCase()}
                       </button>
                     )}
@@ -181,13 +217,18 @@ const Inspector = (props: { lab: Lab }) => {
               </div>
             </Show>
             <div class="panel-section">
-              <button class="danger wide" onClick={lab.remove}>
+              <button class="danger wide" onClick={() => lab.remove(p().id)}>
                 Remove {p().kind === "wire" ? "wire" : "component"}{" "}
                 <span>⌫</span>
               </button>
             </div>
           </>
         )}
+      </Show>
+      <Show when={lab.solution().error}>
+        <div class="notice" role="status">
+          {lab.solution().error}
+        </div>
       </Show>
       <div class="model-note">
         <span class="status-dot" /> DC steady state{" "}

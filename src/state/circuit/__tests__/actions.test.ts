@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createLab } from "../actions";
 import { solve } from "../../../lib/circuit/solver";
 
@@ -61,5 +61,88 @@ describe("circuit editing", () => {
     expect(solve(lab.parts()).readings[r.id].current).toBeCloseTo(0.0045);
     lab.undo();
     expect(solve(lab.parts()).readings[r.id].current).toBeCloseTo(0.009);
+  });
+});
+
+const keyboard = (key: string, options = {}) =>
+  ({
+    key,
+    target: { closest: () => null },
+    preventDefault: vi.fn(),
+    ...options,
+  }) as unknown as KeyboardEvent;
+
+describe("editor shortcuts", () => {
+  it("redoes with the uppercase Z produced by Ctrl+Shift+Z", () => {
+    const lab = createLab();
+    lab.example("series");
+    const initial = lab.parts();
+    lab.key(keyboard("z", { ctrlKey: true }));
+    expect(lab.parts()).toHaveLength(0);
+    lab.key(keyboard("Z", { ctrlKey: true, shiftKey: true }));
+    expect(lab.parts()).toEqual(initial);
+  });
+
+  it("dismisses inspection with Escape even from a form field", () => {
+    const lab = createLab();
+    lab.example("series");
+    lab.setHover({ id: lab.parts()[0].id, x: 0, y: 0 });
+    lab.pin("a");
+    lab.key(keyboard("Escape", { target: { closest: () => ({}) } }));
+    expect(lab.selected()).toBeUndefined();
+    expect(lab.hover()).toBeUndefined();
+    expect(lab.pending()).toBeUndefined();
+  });
+
+  it("deletes a selected component and its wires with Backspace, with undo", () => {
+    const lab = createLab();
+    lab.example("series");
+    const initial = lab.parts();
+    const source = initial[0];
+    lab.setSelected(source.id);
+    lab.key(keyboard("Backspace"));
+    expect(
+      lab
+        .parts()
+        .some(
+          (p) => p.id === source.id || p.a === source.a || p.b === source.b,
+        ),
+    ).toBe(false);
+    lab.undo();
+    expect(lab.parts()).toEqual(initial);
+  });
+
+  it("keeps Backspace inside form fields", () => {
+    const lab = createLab();
+    lab.example("series");
+    const initial = lab.parts();
+    lab.key(keyboard("Backspace", { target: { closest: () => ({}) } }));
+    expect(lab.parts()).toEqual(initial);
+  });
+
+  it("does not clear selection on the canvas click after a component pointer release", () => {
+    const lab = createLab();
+    lab.example("series");
+    const part = lab.parts()[0];
+    const svg = {
+      getBoundingClientRect: () => ({ left: 0, top: 0 }),
+      setPointerCapture: vi.fn(),
+    };
+    lab.startDrag(
+      {
+        button: 0,
+        clientX: part.x,
+        clientY: part.y,
+        pointerId: 1,
+        stopPropagation: vi.fn(),
+        currentTarget: { closest: () => svg },
+      } as unknown as PointerEvent,
+      part,
+    );
+    lab.endDrag();
+    lab.canvas({ target: { closest: () => null } } as unknown as MouseEvent);
+    expect(lab.selected()).toBe(part.id);
+    lab.canvas({ target: { closest: () => null } } as unknown as MouseEvent);
+    expect(lab.selected()).toBeUndefined();
   });
 });

@@ -1,3 +1,5 @@
+import { onMount, onCleanup } from "solid-js";
+import { listenForKeys, pinAt } from "./effects";
 import { catalog, defaults, createFormulas } from "./formulas";
 import { type Kind } from "../../lib/circuit/solver";
 import { createData, type Part } from "./data";
@@ -40,6 +42,7 @@ export const createLab = () => {
   const choose = (kind: Kind | "select") => {
     d.setTool(kind);
     d.setPending(undefined);
+    d.setPreview(undefined);
   };
 
   const pin = (node: string) => {
@@ -55,6 +58,7 @@ export const createLab = () => {
     }
 
     d.setPending(undefined);
+    d.setPreview(undefined);
     d.setTool("select");
   };
 
@@ -72,6 +76,10 @@ export const createLab = () => {
   };
 
   const canvas = (e: MouseEvent) => {
+    if (d.suppressClick()) {
+      d.setSuppressClick(false);
+      return;
+    }
     if ((e.target as Element).closest("[data-part], [data-pin]")) return;
 
     const kind = d.tool();
@@ -98,6 +106,7 @@ export const createLab = () => {
   const startDrag = (e: PointerEvent, p: Part) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    d.setSuppressClick(true);
     d.setSelected(p.id);
 
     if (p.kind === "wire") return;
@@ -118,6 +127,7 @@ export const createLab = () => {
   };
 
   const move = (e: PointerEvent) => {
+    if (d.pending()) d.setPreview(coords(e));
     const drag = d.drag();
 
     if (!drag) return;
@@ -139,7 +149,32 @@ export const createLab = () => {
     d.setHover(undefined);
   };
 
-  const endDrag = () => {
+  const startPin = (e: PointerEvent, node: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    d.setSuppressClick(true);
+    d.setPinDrag(node);
+    if (!d.pending()) pin(node);
+    (e.currentTarget as Element).closest("svg")?.setPointerCapture(e.pointerId);
+  };
+
+  const cancelDrag = () => {
+    if (d.drag()) d.setParts(d.drag()!.before);
+    d.setDrag(undefined);
+    d.setPinDrag(undefined);
+    d.setPreview(undefined);
+    choose("select");
+  };
+
+  const endDrag = (e?: PointerEvent) => {
+    const start = d.pinDrag();
+    if (start && e) {
+      const target = pinAt(e.clientX, e.clientY);
+      if (target && target !== d.pending()) pin(target);
+      else if (!target) choose("select");
+      d.setPinDrag(undefined);
+      d.setPreview(undefined);
+    }
     const drag = d.drag();
 
     if (
@@ -155,8 +190,8 @@ export const createLab = () => {
     d.setDrag(undefined);
   };
 
-  const remove = () => {
-    const p = selected();
+  const remove = (id = d.selected()) => {
+    const p = d.parts().find((part) => part.id === id);
 
     if (!p) return;
     change(
@@ -173,8 +208,8 @@ export const createLab = () => {
     d.setSelected(undefined);
   };
 
-  const insert = (kind: Kind) => {
-    const w = selected();
+  const insert = (kind: Kind, id = d.selected()) => {
+    const w = d.parts().find((part) => part.id === id);
 
     if (!w || w.kind !== "wire") return;
 
@@ -254,19 +289,30 @@ export const createLab = () => {
   };
 
   const key = (e: KeyboardEvent) => {
-    if ((e.target as Element).closest("input,select,textarea")) return;
-
     if (e.key === "Escape") {
       choose("select");
       d.setSelected(undefined);
+      d.setHover(undefined);
+      d.setPreview(undefined);
+      d.setPinDrag(undefined);
+      if (d.drag()) d.setParts(d.drag()!.before);
+      d.setDrag(undefined);
+      return;
     }
+
+    if (
+      (e.target as Element)?.closest?.(
+        "input,select,textarea,[contenteditable]",
+      )
+    )
+      return;
 
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       remove();
     }
 
-    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();
       e.shiftKey ? redo() : undo();
     }
@@ -280,8 +326,30 @@ export const createLab = () => {
     }
   };
 
+  onMount(() => onCleanup(listenForKeys(key)));
+
+  const libraryDrag = (e: DragEvent, kind: Kind) => {
+    if (kind === "wire") return;
+    e.dataTransfer?.setData("application/x-circuit-part", kind);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const drop = (e: DragEvent) => {
+    e.preventDefault();
+    const kind = e.dataTransfer?.getData("application/x-circuit-part") as Kind;
+    if (!catalog.some((c) => c.kind === kind && kind !== "wire")) return;
+    d.setSuppressClick(false);
+    choose(kind);
+    canvas(e);
+  };
+
   return {
     ...d,
+    libraryDrag,
+    drop,
+    startPin,
+    cancelDrag,
+    inspectedPart: () => selected() ?? hovered(),
     solution,
     selectedPart: selected,
     hovered,

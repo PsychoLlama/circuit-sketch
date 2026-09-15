@@ -20,6 +20,7 @@
   - `actions.ts`: combines data and effects providing high-level transitions. Used by components.
 - `routes/`
   - Per-route wrappers. Thin. Delegates to `components`.
+- `__tests__/`: co-located with files they test. `foo.ts` gets `__tests__/foo.test.ts`.
 
 ## Rules
 

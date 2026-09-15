@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHelloActions } from "./actions";
+import { createHelloActions } from "../actions";
 
 describe("hello actions", () => {
   it("greets without changing another feature instance", () => {

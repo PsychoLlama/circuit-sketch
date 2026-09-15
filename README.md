@@ -36,7 +36,7 @@ src/
     data.ts
     effects.ts
     actions.ts
-    actions.test.ts
+    __tests__/actions.test.ts
   routes/index.tsx
   app.tsx
   app.css

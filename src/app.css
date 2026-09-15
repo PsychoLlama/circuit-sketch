@@ -872,3 +872,71 @@ footer > span:last-child {
   stroke-dasharray: 6 4;
   pointer-events: none;
 }
+
+/* Fixed dash spacing makes speed comparable across wires of different lengths. */
+.wire-flow {
+  fill: none;
+  stroke: #126b49;
+  stroke-width: 4;
+  stroke-dasharray: 7 17;
+  stroke-linecap: round;
+  pointer-events: none;
+  animation: current-flow 1s linear infinite;
+}
+@keyframes current-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.wire.idle .wire-line {
+  stroke: #a3aba7;
+}
+.wire.unknown .wire-line {
+  stroke-dasharray: 3 5;
+}
+.flow-legend {
+  position: absolute;
+  bottom: 72px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #455c4e;
+  pointer-events: none;
+}
+.flow-swatch,
+.idle-swatch {
+  width: 22px;
+  border-top: 3px dashed #126b49;
+}
+.idle-swatch {
+  border-top: 2px solid #a3aba7;
+  margin-left: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wire-flow {
+    animation-play-state: paused;
+  }
+}
+
+.flow-arrow {
+  fill: none;
+  stroke: #126b49;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.terminal-lead {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.pin circle.junction {
+  fill: #126b49;
+  stroke: #126b49;
+}

@@ -261,3 +261,35 @@ describe("canvas scrolling", () => {
     expect(lab.pan()).toEqual({ x: 0, y: 0 });
   });
 });
+
+describe("experiment flow", () => {
+  it("shows total current on the shared rails and branch current after the split", () => {
+    const lab = createLab();
+    lab.example("parallel");
+    const [source, upper, lower] = lab.parts();
+    const result = solve(lab.parts());
+    const wires = lab.parts().filter((p) => p.kind === "wire");
+
+    wires.forEach((wire, i) =>
+      expect(Math.abs(result.readings[wire.id].current)).toBeCloseTo(
+        i < 2 ? 0.0135 : 0.0045,
+      ),
+    );
+    expect(wires.some((w) => w.a === upper.a && w.b === lower.a)).toBe(true);
+    expect(source.x).toBe(upper.x);
+    expect(upper.x).toBe(lower.x);
+    expect(new Set(wires.map(lab.path)).size).toBe(4);
+  });
+
+  it("stops current throughout a series loop when the switch opens", () => {
+    const lab = createLab();
+    lab.example("series");
+    const sw = lab.parts().find((p) => p.kind === "switch")!;
+    lab.update(sw.id, { closed: false });
+    const result = solve(lab.parts());
+
+    expect(result.error).toBeUndefined();
+    for (const reading of Object.values(result.readings))
+      expect(reading.current).toBeCloseTo(0);
+  });
+});

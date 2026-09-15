@@ -6,6 +6,7 @@ import {
   componentName,
   components,
   wires,
+  isJunction,
 } from "~/state/circuit/formulas";
 import Symbol from "./Symbol";
 
@@ -94,7 +95,7 @@ const Editor = (props: { lab: Lab }) => {
               {(p) => (
                 <g
                   data-part={p.id}
-                  class={`wire ${lab.selected() === p.id ? "selected" : ""}`}
+                  class={`wire ${lab.flow(p).status} ${lab.selected() === p.id ? "selected" : ""}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     lab.setSelected(p.id);
@@ -106,12 +107,37 @@ const Editor = (props: { lab: Lab }) => {
                   onPointerLeave={() => lab.setHover(undefined)}
                 >
                   <path class="wire-hit" d={lab.path(p)} />
+                  <title>
+                    {lab.flow(p).status === "unknown"
+                      ? "Current unknown"
+                      : `${format(Math.abs(lab.solution().readings[p.id]?.current ?? 0), "A")} · ${lab.flow(p).status === "idle" ? "No current" : lab.flow(p).reverse ? "B → A" : "A → B"}`}
+                  </title>
                   <path class="wire-line" d={lab.path(p)} />
+                  <Show when={lab.flow(p).status === "active"}>
+                    <path
+                      class="wire-flow"
+                      d={lab.path(p)}
+                      style={{
+                        "animation-duration": `${lab.flow(p).duration}s`,
+                        "animation-direction": lab.flow(p).reverse
+                          ? "reverse"
+                          : "normal",
+                      }}
+                    />
+                    <path
+                      class="flow-arrow"
+                      d="M -5 -4 L 3 0 L -5 4"
+                      transform={`translate(${lab.wireLabel(p).x} ${lab.wireLabel(p).y}) rotate(${lab.wireLabel(p).angle + (lab.flow(p).reverse ? 180 : 0)})`}
+                    />
+                  </Show>
                   <Show when={lab.labels() && lab.solution().readings[p.id]}>
                     <text
                       class="wire-reading"
-                      x={(lab.point(p.a).x + lab.point(p.b).x) / 2 + 8}
-                      y={(lab.point(p.a).y + lab.point(p.b).y) / 2 - 8}
+                      x={lab.wireLabel(p).x + 8 * lab.wireLabel(p).labelSide}
+                      text-anchor={
+                        lab.wireLabel(p).labelSide < 0 ? "end" : "start"
+                      }
+                      y={lab.wireLabel(p).y - 8}
                     >
                       {format(lab.solution().readings[p.id]?.current, "A")}
                     </text>
@@ -143,6 +169,12 @@ const Editor = (props: { lab: Lab }) => {
                   <text class="part-id" x="0" y="-43">
                     {p.id}
                   </text>
+                  <Show when={p.terminalOffset}>
+                    <path
+                      class="terminal-lead"
+                      d={`M ${-p.terminalOffset!} 0 H -48 M 48 0 H ${p.terminalOffset!}`}
+                    />
+                  </Show>
                   <Symbol kind={p.kind} closed={p.closed} />
                   <text class="part-value" x="0" y="52">
                     {partValue(p)}
@@ -166,11 +198,24 @@ const Editor = (props: { lab: Lab }) => {
                       >
                         <circle
                           class="pin-hit"
-                          cx={side === "a" ? -48 : 48}
+                          cx={
+                            (side === "a" ? -1 : 1) * (p.terminalOffset ?? 48)
+                          }
                           r="12"
                         />
-                        <circle cx={side === "a" ? -48 : 48} r="4" />
-                        <text x={side === "a" ? -48 : 48} y="-13">
+                        <circle
+                          cx={
+                            (side === "a" ? -1 : 1) * (p.terminalOffset ?? 48)
+                          }
+                          r="4"
+                          class={
+                            isJunction(lab.parts(), p[side]) ? "junction" : ""
+                          }
+                        />
+                        <text
+                          x={(side === "a" ? -1 : 1) * (p.terminalOffset ?? 48)}
+                          y="-13"
+                        >
                           {side.toUpperCase()}
                         </text>
                       </g>
@@ -205,6 +250,13 @@ const Editor = (props: { lab: Lab }) => {
             <button class="text-button" onClick={() => lab.example("series")}>
               Or explore a working circuit <span>↗</span>
             </button>
+          </div>
+        </Show>
+        <Show when={lab.parts().length}>
+          <div class="flow-legend">
+            <span class="flow-swatch" /> Conventional current · faster = more
+            current
+            <span class="idle-swatch" /> Still = no current · dotted = unknown
           </div>
         </Show>
         <div class="canvas-bottom">

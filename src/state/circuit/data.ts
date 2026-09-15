@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import type { Branch, Kind } from "~/lib/circuit/solver";
 
-export type Part = Branch & { x: number; y: number };
+export type Part = Branch & { x: number; y: number; terminalOffset?: number };
 
 export type Hover = { id: string; x: number; y: number };
 

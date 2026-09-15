@@ -52,6 +52,8 @@ export const createLab = () => {
     hovered,
     point,
     path,
+    wireLabel,
+    flow,
   } = createFormulas(d);
   const change = (parts: Part[]) => {
     d.setHistory((h) => [...h.slice(-49), d.parts()]);
@@ -275,17 +277,16 @@ export const createLab = () => {
   };
 
   const example = (which: string) => {
-    const v = make("source", 170, 260),
-      r = make("resistor", 410, 160),
-      s = make(
-        which === "capacitor"
-          ? "capacitor"
-          : which === "divider"
-            ? "resistor"
-            : "switch",
-        410,
-        360,
-      );
+    const parallel = which === "parallel";
+    const divider = which === "divider";
+    const capacitor = which === "capacitor";
+    const v = make("source", parallel ? 300 : 280, parallel ? 120 : 380);
+    const r = make("resistor", parallel ? 300 : 160, parallel ? 280 : 160);
+    const s = make(
+      capacitor ? "capacitor" : divider || parallel ? "resistor" : "switch",
+      parallel ? 300 : 400,
+      parallel ? 440 : divider ? 260 : 160,
+    );
 
     const wire = (a: string, b: string): Part => ({
       ...make("wire", 0, 0),
@@ -293,20 +294,23 @@ export const createLab = () => {
       b,
     });
 
-    const ps = [v, r, s, wire(v.a, r.a), wire(r.b, s.b), wire(s.a, v.b)];
-
-    if (which === "parallel") {
-      s.kind = "resistor";
+    if (parallel) {
       s.value = 2000;
-      ps.splice(
-        3,
-        3,
-        wire(v.a, r.a),
-        wire(r.b, v.b),
-        wire(v.a, s.a),
-        wire(s.b, v.b),
-      );
+      for (const part of [v, r, s]) part.terminalOffset = 96;
     }
+
+    // Chain the rails at the upper resistor's pins: each segment is drawn once.
+    const ps = parallel
+      ? [
+          v,
+          r,
+          s,
+          wire(v.a, r.a),
+          wire(r.b, v.b),
+          wire(r.a, s.a),
+          wire(s.b, r.b),
+        ]
+      : [v, r, s, wire(v.a, r.a), wire(r.b, s.a), wire(s.b, v.b)];
 
     change(ps);
     d.setSelected(r.id);
@@ -406,6 +410,8 @@ export const createLab = () => {
     pin,
     point,
     path,
+    wireLabel,
+    flow,
     canvas,
     startDrag,
     move,

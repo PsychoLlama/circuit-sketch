@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { constrainOffset } from "../formulas";
+import { currentFlow, constrainOffset } from "../formulas";
 
 const bounds = { left: 100, right: 500, top: 80, bottom: 280 };
 const viewport = { width: 800, height: 600 };
@@ -49,6 +49,23 @@ describe("canvas scroll limits", () => {
   it("keeps an empty canvas at the origin", () => {
     expect(constrainOffset({ x: 100, y: 100 }, undefined, 1, viewport)).toEqual(
       { x: 0, y: 0 },
+    );
+  });
+});
+
+describe("current visualization", () => {
+  it("distinguishes zero current from unavailable readings", () => {
+    expect(currentFlow(0, 0).status).toBe("idle");
+    expect(currentFlow(1e-15, 1).status).toBe("idle");
+    expect(currentFlow(undefined, 0).status).toBe("unknown");
+    expect(currentFlow(NaN, 0).status).toBe("unknown");
+  });
+
+  it("reverses negative current and preserves branch speed ratios", () => {
+    expect(currentFlow(-0.009, 0.0135).reverse).toBe(true);
+    expect(currentFlow(0.009, 0.0135).reverse).toBe(false);
+    expect(currentFlow(0.0045, 0.0135).duration).toBeCloseTo(
+      2 * currentFlow(0.009, 0.0135).duration,
     );
   });
 });

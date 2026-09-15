@@ -1,5 +1,4 @@
-import HelloWorld from "~/components/hello/HelloWorld";
-
+import CircuitLab from "~/components/circuit/Lab";
 export default function Home() {
-  return <HelloWorld />;
+  return <CircuitLab />;
 }

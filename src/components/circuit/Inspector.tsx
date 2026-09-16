@@ -8,6 +8,9 @@ import {
   nodeCount,
   circuitPower,
   format,
+  ratingDescription,
+  connections,
+  valueLabel,
 } from "~/state/circuit/formulas";
 import type { Kind } from "~/lib/circuit/solver";
 import Symbol from "./Symbol";
@@ -73,20 +76,9 @@ const Inspector = (props: { lab: Lab }) => {
                   <select
                     aria-label="Component type"
                     value={p().kind}
-                    onChange={(e) => {
-                      const kind = e.currentTarget.value as Kind;
-                      lab.update(p().id, {
-                        kind,
-                        value:
-                          kind === "source"
-                            ? 9
-                            : kind === "resistor"
-                              ? 1000
-                              : kind === "capacitor"
-                                ? 1e-6
-                                : 0,
-                      });
-                    }}
+                    onChange={(e) =>
+                      lab.changeKind(p().id, e.currentTarget.value as Kind)
+                    }
                   >
                     <For each={componentCatalog}>
                       {(c) => <option value={c.kind}>{c.name}</option>}
@@ -96,52 +88,17 @@ const Inspector = (props: { lab: Lab }) => {
               </Show>
               <Show when={p().kind !== "switch"}>
                 <label>
-                  {p().kind === "source"
-                    ? "Voltage (V)"
-                    : p().kind === "capacitor"
-                      ? "Capacitance (F)"
-                      : "Resistance (Ω)"}
+                  {valueLabel(p())}
                   <input
                     aria-label="Component value"
                     type="number"
                     step="any"
-                    min={
-                      p().kind === "source"
-                        ? undefined
-                        : p().kind === "resistor"
-                          ? "0.000001"
-                          : "0"
-                    }
 
                     value={p().value}
-                    onInput={(e) => {
-                      const n = e.currentTarget.valueAsNumber;
-
-                      if (
-                        Number.isFinite(n) &&
-                        (p().kind === "source" ||
-                          n > 0 ||
-                          (p().kind === "wire" && n === 0))
-                      )
-                        lab.update(p().id, { value: n });
-                    }}
-                  />
-                </label>
-              </Show>
-              <Show when={p().kind === "wire"}>
-                <label>
-                  Wire model
-                  <select
-                    value={p().value === 0 ? "ideal" : "resistive"}
-                    onChange={(e) =>
-                      lab.update(p().id, {
-                        value: e.currentTarget.value === "ideal" ? 0 : 0.1,
-                      })
+                    onInput={(e) =>
+                      lab.setValue(p().id, e.currentTarget.valueAsNumber)
                     }
-                  >
-                    <option value="ideal">Ideal · 0 Ω</option>
-                    <option value="resistive">Resistive · custom Ω</option>
-                  </select>
+                  />
                 </label>
               </Show>
             </div>
@@ -165,6 +122,42 @@ const Inspector = (props: { lab: Lab }) => {
                 </label>
               </div>
             </Show>
+            <div class="panel-section">
+              <span class="eyebrow">VALIDATION</span>
+              <Show
+                when={lab.errors(p()).length}
+                fallback={<p class="validation-ok">No errors detected.</p>}
+              >
+                <ul class="validation-errors" role="status">
+                  <For each={lab.errors(p())}>
+                    {(error) => <li>{error}</li>}
+                  </For>
+                </ul>
+              </Show>
+              <p class="rating-note">
+                Model ratings: {ratingDescription(p())}.
+              </p>
+              <Show when={p().kind === "led" || p().kind === "diode"}>
+                <p class="rating-note">
+                  A: anode (+), B: cathode (−). Piecewise-linear DC model with
+                  10 Ω forward resistance and 1 GΩ reverse resistance. Use a
+                  series resistor for LEDs.
+                </p>
+              </Show>
+              <Show when={p().kind === "lamp"}>
+                <p class="rating-note">
+                  Fixed resistance model; filament heating is not simulated.
+                </p>
+              </Show>
+              <Show when={p().kind === "rheostat"}>
+                <p class="rating-note">
+                  Two-terminal variable resistor. Adjust resistance above.
+                </p>
+              </Show>
+              <p class="rating-note">
+                Errors clear when corrected; permanent damage is not simulated.
+              </p>
+            </div>
             <div class="panel-section">
               <span class="eyebrow">ELECTRICAL STATE</span>
               <Measurements lab={lab} part={p()} />
@@ -194,23 +187,25 @@ const Inspector = (props: { lab: Lab }) => {
                 </Show>
               </dl>
             </div>
-            <Show when={p().kind === "wire"}>
-              <div class="panel-section">
-                <span class="eyebrow">EDIT PATH</span>
-                <div class="insert-buttons">
-                  <For each={componentCatalog}>
-                    {(c) => (
-                      <button onClick={() => lab.insert(c.kind, p().id)}>
-                        + Insert {c.name.toLowerCase()}
-                      </button>
-                    )}
-                  </For>
-                </div>
-                <button class="wide" onClick={() => lab.pin(p().a)}>
-                  Branch from terminal A ↗
-                </button>
-              </div>
-            </Show>
+            <div class="panel-section">
+              <span class="eyebrow">CONNECTIONS</span>
+              <For
+                each={connections(lab.parts(), p())}
+                fallback={
+                  <p>No connections yet. Drag between pins to connect.</p>
+                }
+              >
+                {(wire) => (
+                  <button
+                    class="wide"
+                    onClick={() => lab.remove(wire.id)}
+                    aria-label={`Disconnect ${wire.a} from ${wire.b}`}
+                  >
+                    Disconnect {wire.a} ↔ {wire.b}
+                  </button>
+                )}
+              </For>
+            </div>
             <div class="panel-section">
               <button class="danger wide" onClick={() => lab.remove(p().id)}>
                 Remove {p().kind === "wire" ? "wire" : "component"}{" "}

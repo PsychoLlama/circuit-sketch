@@ -93,20 +93,7 @@ const Editor = (props: { lab: Lab }) => {
             </Show>
             <For each={wires(lab.parts())}>
               {(p) => (
-                <g
-                  data-part={p.id}
-                  class={`wire ${lab.flow(p).status} ${lab.selected() === p.id ? "selected" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    lab.setSelected(p.id);
-                  }}
-                  onPointerEnter={(e) =>
-                    lab.setHover({ id: p.id, x: e.clientX, y: e.clientY })
-                  }
-
-                  onPointerLeave={() => lab.setHover(undefined)}
-                >
-                  <path class="wire-hit" d={lab.path(p)} />
+                <g class={`wire ${lab.flow(p).status}`}>
                   <title>
                     {lab.flow(p).status === "unknown"
                       ? "Current unknown"
@@ -123,11 +110,6 @@ const Editor = (props: { lab: Lab }) => {
                           ? "reverse"
                           : "normal",
                       }}
-                    />
-                    <path
-                      class="flow-arrow"
-                      d="M -5 -4 L 3 0 L -5 4"
-                      transform={`translate(${lab.wireLabel(p).x} ${lab.wireLabel(p).y}) rotate(${lab.wireLabel(p).angle + (lab.flow(p).reverse ? 180 : 0)})`}
                     />
                   </Show>
                   <Show when={lab.labels() && lab.solution().readings[p.id]}>
@@ -150,7 +132,7 @@ const Editor = (props: { lab: Lab }) => {
                 <g
                   data-part={p.id}
                   transform={`translate(${p.x} ${p.y})`}
-                  class={`circuit-part ${lab.selected() === p.id ? "selected" : ""}`}
+                  class={`circuit-part ${lab.selected() === p.id ? "selected" : ""} ${lab.errors(p).length ? "has-error" : ""}`}
                   onPointerDown={(e) => lab.startDrag(e, p)}
                   onPointerEnter={(e) =>
                     lab.setHover({ id: p.id, x: e.clientX, y: e.clientY })
@@ -175,7 +157,28 @@ const Editor = (props: { lab: Lab }) => {
                       d={`M ${-p.terminalOffset!} 0 H -48 M 48 0 H ${p.terminalOffset!}`}
                     />
                   </Show>
-                  <Symbol kind={p.kind} closed={p.closed} />
+                  <Symbol
+                    kind={p.kind}
+                    closed={p.closed}
+                    lit={
+                      (p.kind === "led" || p.kind === "lamp") &&
+                      !lab.errors(p).length &&
+                      (lab.solution().readings[p.id]?.power ?? 0) > 0.001
+                    }
+                  />
+                  <Show when={lab.errors(p).length}>
+                    <g
+                      class="error-indicator"
+                      role="img"
+                      aria-label={`${p.id}: ${lab.errors(p).join(" ")}`}
+                    >
+                      <title>{lab.errors(p).join("\n")}</title>
+                      <circle cx="46" cy="-27" r="10" />
+                      <text x="46" y="-23">
+                        !
+                      </text>
+                    </g>
+                  </Show>
                   <text class="part-value" x="0" y="52">
                     {partValue(p)}
                   </text>

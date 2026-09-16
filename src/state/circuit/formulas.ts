@@ -1,6 +1,8 @@
 import { createMemo } from "solid-js";
 import {
   solve,
+  parameterErrors,
+  isDiode,
   type Kind,
   type Solution,
   type Reading,
@@ -38,6 +40,30 @@ export const catalog: {
     description: "Open circuit at DC equilibrium",
   },
   {
+    kind: "led",
+    name: "LED",
+    key: "L",
+    description: "Light-emitting diode · use a series resistor",
+  },
+  {
+    kind: "diode",
+    name: "Diode",
+    key: "D",
+    description: "Conducts from anode A to cathode B",
+  },
+  {
+    kind: "rheostat",
+    name: "Rheostat",
+    key: "P",
+    description: "Two-terminal variable resistance",
+  },
+  {
+    kind: "lamp",
+    name: "Lamp",
+    key: "B",
+    description: "Resistive lamp · fixed resistance DC model",
+  },
+  {
     kind: "wire",
     name: "Wire",
     key: "W",
@@ -46,6 +72,10 @@ export const catalog: {
 ];
 
 export const defaults: Record<Kind, number> = {
+  led: 2,
+  diode: 0.7,
+  rheostat: 1000,
+  lamp: 100,
   source: 9,
   resistor: 1000,
   switch: 0,
@@ -82,7 +112,11 @@ export const partValue = (p: Part) => {
       : "Open"
     : format(
         p.value,
-        p.kind === "source" ? "V" : p.kind === "capacitor" ? "F" : "Ω",
+        p.kind === "source" || isDiode(p)
+          ? "V"
+          : p.kind === "capacitor"
+            ? "F"
+            : "Ω",
       );
 };
 
@@ -335,3 +369,103 @@ export const circuitPower = (solution: Solution, supplied: boolean) =>
           total + Math.max(0, supplied ? -reading.power : reading.power),
         0,
       );
+
+// Educational component ratings, not specifications for a particular physical part.
+export const ratings = {
+  source: { power: 5, current: 1, voltage: Infinity, reverse: Infinity },
+  resistor: {
+    power: 0.25,
+    current: Infinity,
+    voltage: Infinity,
+    reverse: Infinity,
+  },
+  rheostat: {
+    power: 0.25,
+    current: Infinity,
+    voltage: Infinity,
+    reverse: Infinity,
+  },
+  lamp: { power: 1, current: Infinity, voltage: Infinity, reverse: Infinity },
+  led: { power: 0.06, current: 0.02, voltage: Infinity, reverse: 5 },
+  diode: { power: 1, current: 1, voltage: Infinity, reverse: 50 },
+  capacitor: {
+    power: Infinity,
+    current: Infinity,
+    voltage: 16,
+    reverse: Infinity,
+  },
+  switch: { power: Infinity, current: 0.5, voltage: 30, reverse: Infinity },
+  wire: { power: Infinity, current: 1, voltage: Infinity, reverse: Infinity },
+};
+
+export const componentErrors = (
+  part: Part,
+  parts: Part[],
+  solution: Solution,
+) => {
+  const errors = parameterErrors(part);
+  for (const [side, node] of [
+    ["A", part.a],
+    ["B", part.b],
+  ]) {
+    if (!parts.some((p) => p.id !== part.id && (p.a === node || p.b === node)))
+      errors.push(
+        `Terminal ${side} is disconnected. Connect it to the circuit.`,
+      );
+  }
+  const reading = solution.readings[part.id];
+  if (reading) {
+    const limit = ratings[part.kind];
+    if (Math.abs(reading.power) > limit.power * (1 + 1e-9))
+      errors.push(
+        `Power ${format(Math.abs(reading.power), "W")} exceeds the ${format(limit.power, "W")} rating.${part.kind === "led" ? " Add or increase the series resistor." : ""}`,
+      );
+    if (Math.abs(reading.current) > limit.current * (1 + 1e-9))
+      errors.push(
+        `Current ${format(Math.abs(reading.current), "A")} exceeds the ${format(limit.current, "A")} rating.`,
+      );
+    if (Math.abs(reading.voltage) > limit.voltage * (1 + 1e-9))
+      errors.push(`Voltage exceeds the ${format(limit.voltage, "V")} rating.`);
+    if (-reading.voltage > limit.reverse)
+      errors.push(
+        `Reverse voltage exceeds ${format(limit.reverse, "V")}. Check polarity: A is the anode, B is the cathode.`,
+      );
+  } else if (solution.error && !errors.length) {
+    errors.push(`Electrical state unavailable: ${solution.error}`);
+  }
+  return errors;
+};
+
+export const ratingDescription = (part: Part) => {
+  const limit = ratings[part.kind];
+  return [
+    Number.isFinite(limit.power)
+      ? `${format(limit.power, "W")} maximum power`
+      : "",
+    Number.isFinite(limit.current)
+      ? `${format(limit.current, "A")} maximum current`
+      : "",
+    Number.isFinite(limit.voltage)
+      ? `${format(limit.voltage, "V")} maximum voltage`
+      : "",
+    Number.isFinite(limit.reverse)
+      ? `${format(limit.reverse, "V")} maximum reverse voltage`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+};
+
+export const connections = (parts: Part[], part: Part) =>
+  wires(parts).filter(
+    (w) => [part.a, part.b].includes(w.a) || [part.a, part.b].includes(w.b),
+  );
+
+export const valueLabel = (part: Part) =>
+  part.kind === "source"
+    ? "Voltage (V)"
+    : isDiode(part)
+      ? "Forward voltage (V)"
+      : part.kind === "capacitor"
+        ? "Capacitance (F)"
+        : "Resistance (Ω)";

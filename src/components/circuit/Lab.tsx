@@ -34,7 +34,7 @@ const CircuitLab = () => {
           Click or drag terminals to wire <i>·</i> Drag to move <i>·</i>{" "}
           Backspace to delete <i>·</i> Esc to cancel
         </span>
-        <span>IDEAL COMPONENTS / DC</span>
+        <span>DC COMPONENT MODELS</span>
       </footer>
     </main>
   );

@@ -8,6 +8,8 @@ import {
 } from "./effects";
 import {
   catalog,
+  componentCatalog,
+  componentErrors,
   defaults,
   createFormulas,
   circuitBounds,
@@ -174,12 +176,10 @@ export const createLab = () => {
   };
 
   const startDrag = (e: PointerEvent, p: Part) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || p.kind === "wire") return;
     e.stopPropagation();
     d.setSuppressClick(true);
     d.setSelected(p.id);
-
-    if (p.kind === "wire") return;
 
     const pos = coords(e);
 
@@ -299,7 +299,13 @@ export const createLab = () => {
     const v = make("source", parallel ? 300 : 280, parallel ? 120 : 380);
     const r = make("resistor", parallel ? 300 : 160, parallel ? 280 : 160);
     const s = make(
-      capacitor ? "capacitor" : divider || parallel ? "resistor" : "switch",
+      which === "led"
+        ? "led"
+        : capacitor
+          ? "capacitor"
+          : divider || parallel
+            ? "resistor"
+            : "switch",
       parallel ? 300 : 400,
       parallel ? 440 : divider ? 260 : 160,
     );
@@ -387,7 +393,7 @@ export const createLab = () => {
     }
 
     if (!e.ctrlKey && !e.metaKey) {
-      const c = catalog.find(
+      const c = componentCatalog.find(
         (c) => c.key.toLowerCase() === e.key.toLowerCase(),
       );
 
@@ -424,7 +430,16 @@ export const createLab = () => {
     drop,
     startPin,
     cancelDrag,
-    inspectedPart: () => selected() ?? hovered(),
+    inspectedPart: () => {
+      const part = selected() ?? hovered();
+      return part?.kind === "wire" ? undefined : part;
+    },
+    errors: (part: Part) => componentErrors(part, d.parts(), solution()),
+    changeKind: (id: string, kind: Kind) =>
+      update(id, { kind, value: defaults[kind], closed: true }),
+    setValue: (id: string, value: number) => {
+      if (Number.isFinite(value)) update(id, { value });
+    },
     solution,
     selectedPart: selected,
     hovered,

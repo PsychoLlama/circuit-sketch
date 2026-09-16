@@ -658,25 +658,14 @@ select {
 }
 .wire {
   color: #799387;
-  cursor: pointer;
+  pointer-events: none;
 }
 .wire-line {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
 }
-.wire-hit {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 16;
-}
-.wire:hover,
-.wire.selected {
-  color: #25875f;
-}
-.wire.selected .wire-line {
-  stroke-width: 3;
-}
+
 .wire-reading {
   fill: #6c8a7a;
   font:
@@ -922,15 +911,6 @@ footer > span:last-child {
   }
 }
 
-.flow-arrow {
-  fill: none;
-  stroke: #126b49;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
-}
-
 .terminal-lead {
   fill: none;
   stroke: currentColor;
@@ -939,4 +919,40 @@ footer > span:last-child {
 .pin circle.junction {
   fill: #126b49;
   stroke: #126b49;
+}
+
+.circuit-part.has-error .part-bg {
+  stroke: #b83b38;
+  stroke-dasharray: 4 3;
+}
+.error-indicator circle {
+  fill: #b83b38;
+  stroke: #fff;
+  stroke-width: 2;
+}
+.error-indicator text {
+  fill: white;
+  text-anchor: middle;
+  font: bold 13px sans-serif;
+}
+.validation-errors {
+  color: #a52c29;
+  padding-left: 16px;
+  font-size: 12px;
+}
+.validation-errors li + li {
+  margin-top: 8px;
+}
+.validation-ok {
+  color: #126b49;
+  font-size: 12px;
+}
+.rating-note,
+.connection-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #687671;
+}
+.connection-hint {
+  padding: 0 18px;
 }

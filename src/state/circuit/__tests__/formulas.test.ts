@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { currentFlow, constrainOffset } from "../formulas";
+import {
+  componentErrors,
+  componentCatalog,
+  defaults,
+  parseCircuit,
+  currentFlow,
+  constrainOffset,
+} from "../formulas";
+
+import { solve, type Kind } from "../../../lib/circuit/solver";
+import type { Part } from "../data";
 
 const bounds = { left: 100, right: 500, top: 80, bottom: 280 };
 const viewport = { width: 800, height: 600 };
@@ -67,5 +77,93 @@ describe("current visualization", () => {
     expect(currentFlow(0.0045, 0.0135).duration).toBeCloseTo(
       2 * currentFlow(0.009, 0.0135).duration,
     );
+  });
+});
+
+describe("component validation", () => {
+  const part = (kind: Kind, value = defaults[kind]): Part => ({
+    id: "X",
+    kind,
+    value,
+    a: "p",
+    b: "g",
+    x: 100,
+    y: 100,
+    closed: true,
+  });
+  const source: Part = { ...part("source", 9), id: "V" };
+
+  it("flags LED overcurrent and excess power, and clears after adding resistance", () => {
+    const led = part("led");
+    const direct = [source, led];
+    const errors = componentErrors(led, direct, solve(direct));
+    expect(errors.some((e) => e.startsWith("Power"))).toBe(true);
+    expect(errors.some((e) => e.startsWith("Current"))).toBe(true);
+    const safeLed = { ...led, a: "m" };
+    const safe = [
+      source,
+      { ...part("resistor", 1000), id: "R", b: "m" },
+      safeLed,
+    ];
+    expect(componentErrors(safeLed, safe, solve(safe))).toEqual([]);
+  });
+
+  it("reports LED reverse voltage without treating small reverse bias as damage", () => {
+    const led = { ...part("led"), a: "g", b: "p" };
+    const parts = [source, led];
+    expect(componentErrors(led, parts, solve(parts)).join(" ")).toContain(
+      "Reverse voltage",
+    );
+    const safe = [{ ...source, value: 3 }, led];
+    expect(componentErrors(led, safe, solve(safe))).toEqual([]);
+  });
+
+  it("validates every component and identifies disconnected pins", () => {
+    for (const { kind } of componentCatalog) {
+      const p = part(kind, NaN);
+      const errors = componentErrors(p, [p], solve([p]));
+      expect(errors).toContain("Value must be finite.");
+      expect(errors.join(" ")).toContain("Terminal A is disconnected");
+      expect(errors.join(" ")).toContain("Terminal B is disconnected");
+    }
+  });
+
+  it("checks resistor, rheostat, lamp, capacitor, diode, switch and source ratings", () => {
+    for (const [kind, voltage, current] of [
+      ["resistor", 10, 0.1],
+      ["rheostat", 10, 0.1],
+      ["lamp", 10, 0.2],
+      ["capacitor", 20, 0],
+      ["diode", 2, 2],
+      ["switch", 0, 1],
+      ["source", 9, -1],
+    ] as const) {
+      const p = part(kind);
+      expect(
+        componentErrors(p, [p, { ...source, id: "other" }], {
+          nodes: {},
+          readings: {
+            X: { a: voltage, b: 0, voltage, current, power: voltage * current },
+          },
+        }).length,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it("explains unsolved states for connected components", () => {
+    const p = part("switch");
+    const parts = [source, p];
+    expect(componentErrors(p, parts, solve(parts)).join(" ")).toContain(
+      "Electrical state unavailable",
+    );
+  });
+
+  it("round-trips every component kind while keeping wires out of the library", () => {
+    const parts = componentCatalog.map(({ kind }, i) => ({
+      ...part(kind),
+      id: String(i),
+    }));
+    expect(componentCatalog.some((c) => c.kind === "wire")).toBe(false);
+    expect(parseCircuit(JSON.stringify({ version: 1, parts }))).toEqual(parts);
   });
 });

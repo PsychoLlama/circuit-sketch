@@ -406,3 +406,46 @@ describe("saved circuits", () => {
     }
   });
 });
+
+describe("breadboard editing", () => {
+  it("loads a safe LED circuit", () => {
+    const lab = createLab();
+    lab.example("led");
+    const led = lab.parts().find((p) => p.kind === "led")!;
+    expect(led).toBeDefined();
+    expect(lab.errors(led)).toEqual([]);
+    expect(solve(lab.parts()).readings[led.id].current).toBeGreaterThan(0.001);
+  });
+
+  it("disconnects a wire with undo support", () => {
+    const lab = createLab();
+    lab.example("led");
+    const before = lab.parts();
+    const wire = before.find((p) => p.kind === "wire")!;
+    lab.remove(wire.id);
+    expect(lab.parts()).toHaveLength(before.length - 1);
+    lab.undo();
+    expect(lab.parts()).toEqual(before);
+  });
+
+  it("resets values when changing a component type", () => {
+    const lab = createLab();
+    lab.example("series");
+    const part = lab.parts().find((p) => p.kind === "resistor")!;
+    lab.changeKind(part.id, "led");
+    expect(lab.parts().find((p) => p.id === part.id)).toMatchObject({
+      kind: "led",
+      value: 2,
+    });
+  });
+
+  it("retains invalid finite edits for visible validation and recovers after correction", () => {
+    const lab = createLab();
+    lab.example("series");
+    const resistor = () => lab.parts().find((p) => p.kind === "resistor")!;
+    lab.setValue(resistor().id, -1);
+    expect(lab.errors(resistor()).join(" ")).toContain("greater than zero");
+    lab.setValue(resistor().id, 1000);
+    expect(lab.errors(resistor())).toEqual([]);
+  });
+});

@@ -1,6 +1,6 @@
 import { For } from "solid-js";
 import type { Lab } from "~/state/circuit/actions";
-import { catalog } from "~/state/circuit/formulas";
+import { componentCatalog } from "~/state/circuit/formulas";
 import Symbol from "./Symbol";
 
 const Library = (props: { lab: Lab }) => {
@@ -9,14 +9,16 @@ const Library = (props: { lab: Lab }) => {
   return (
     <aside class="library">
       <div class="panel-heading">
-        COMPONENTS <span>05</span>
+        COMPONENTS{" "}
+        <span>{String(componentCatalog.length).padStart(2, "0")}</span>
       </div>
-      <For each={catalog}>
+      <For each={componentCatalog}>
         {(c) => (
           <button
             class={`part-button ${lab.tool() === c.kind ? "active" : ""}`}
             onClick={() => lab.choose(c.kind)}
-            draggable={c.kind !== "wire"}
+            draggable={true}
+            title={c.description}
             onDragStart={(e) => lab.libraryDrag(e, c.kind)}
           >
             <svg viewBox="-55 -30 110 60">
@@ -27,6 +29,7 @@ const Library = (props: { lab: Lab }) => {
           </button>
         )}
       </For>
+      <p class="connection-hint">Drag between pins to connect components.</p>
       <div class="library-section">
         <span class="eyebrow">EXAMPLES</span>
         <button class="experiment" onClick={() => lab.example("series")}>
@@ -47,6 +50,11 @@ const Library = (props: { lab: Lab }) => {
         <button class="experiment" onClick={() => lab.example("capacitor")}>
           <span>04</span>
           <div>Capacitor</div>
+          <b>↗</b>
+        </button>
+        <button class="experiment" onClick={() => lab.example("led")}>
+          <span>05</span>
+          <div>LED + resistor</div>
           <b>↗</b>
         </button>
       </div>

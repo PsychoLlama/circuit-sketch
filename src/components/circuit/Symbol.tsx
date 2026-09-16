@@ -1,7 +1,7 @@
 import { Show } from "solid-js";
 import type { Kind } from "~/lib/circuit/solver";
 
-const Symbol = (props: { kind: Kind; closed?: boolean }) => {
+const Symbol = (props: { kind: Kind; closed?: boolean; lit?: boolean }) => {
   return (
     <g
       fill="none"
@@ -10,8 +10,25 @@ const Symbol = (props: { kind: Kind; closed?: boolean }) => {
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      <Show when={props.kind === "resistor"}>
+      <Show when={props.kind === "resistor" || props.kind === "rheostat"}>
         <path d="M-48 0H-30l5-10 10 20 10-20 10 20 10-20 10 20 5-10H48" />
+      </Show>
+      <Show when={props.kind === "rheostat"}>
+        <path d="M-15 23L16-23m-9 3 9-3-1 10" />
+      </Show>
+      <Show when={props.kind === "led" || props.kind === "diode"}>
+        <path
+          d="M-48 0H-14M14 0H48M-14-14L12 0-14 14ZM14-15v30"
+          fill={props.lit ? "#e8b73c" : "none"}
+        />
+        <Show when={props.kind === "led"}>
+          <path d="M0-19l10-10m-6 0h6v6M15-15l10-10m-6 0h6v6" />
+        </Show>
+      </Show>
+      <Show when={props.kind === "lamp"}>
+        <path d="M-48 0H-18M18 0H48" />
+        <circle r="18" fill={props.lit ? "#e8b73c" : "none"} />
+        <path d="M-12-12L12 12M-12 12L12-12" />
       </Show>
       <Show when={props.kind === "source"}>
         <path d="M-48 0H-18M18 0H48" />

@@ -1,8 +1,17 @@
 /** DC modified nodal analysis. Passive sign convention: I flows a → b, P = (Va−Vb)I.
  * Reference: https://lpsa.swarthmore.edu/Systems/Electrical/mna/MNA3.html
- * Capacitors are open at DC equilibrium. No transient or nonlinear models.
+ * Capacitors are open at DC equilibrium. Diodes use a piecewise-linear DC approximation; no transients.
  */
-export type Kind = "source" | "resistor" | "switch" | "capacitor" | "wire";
+export type Kind =
+  | "source"
+  | "resistor"
+  | "switch"
+  | "capacitor"
+  | "wire"
+  | "led"
+  | "diode"
+  | "rheostat"
+  | "lamp";
 
 export type Branch = {
   id: string;
@@ -28,7 +37,56 @@ export type Solution = {
   reference?: string;
 };
 
+export const isDiode = (b: Branch) => b.kind === "led" || b.kind === "diode";
+
+export const parameterErrors = (b: Branch): string[] => {
+  const errors: string[] = [];
+  if (!Number.isFinite(b.value)) errors.push("Value must be finite.");
+  else if (
+    ["resistor", "rheostat", "lamp", "capacitor", "led", "diode"].includes(
+      b.kind,
+    ) &&
+    b.value <= 0
+  )
+    errors.push("Value must be greater than zero.");
+  else if (b.kind === "wire" && b.value < 0)
+    errors.push("Wire resistance cannot be negative.");
+  if (!b.a || !b.b) errors.push("Both terminals need a node.");
+  if (b.a === b.b)
+    errors.push("Both terminals are connected to the same node.");
+  return errors;
+};
+
 export const solve = (branches: Branch[], reference?: string): Solution => {
+  let conducting = new Set<string>();
+  for (let iteration = 0; iteration < 100; iteration++) {
+    const result = solveLinear(branches, reference, conducting);
+    if (result.error) return result;
+    const next = new Set(
+      branches
+        .filter((b) => isDiode(b) && result.readings[b.id].voltage > b.value)
+        .map((b) => b.id),
+    );
+    if (
+      next.size === conducting.size &&
+      [...next].every((id) => conducting.has(id))
+    )
+      return result;
+    conducting = next;
+  }
+  return {
+    readings: {},
+    nodes: {},
+    error:
+      "Diode model did not converge. Check the circuit connections and values.",
+  };
+};
+
+const solveLinear = (
+  branches: Branch[],
+  reference: string | undefined,
+  conducting: Set<string>,
+): Solution => {
   const fail = (error: string): Solution => ({
     readings: {},
     nodes: {},
@@ -40,15 +98,15 @@ export const solve = (branches: Branch[], reference?: string): Solution => {
   if (new Set(branches.map((b) => b.id)).size !== branches.length)
     return fail("Duplicate component identifiers.");
 
-  if (
-    branches.some(
-      (b) =>
-        !Number.isFinite(b.value) ||
-        (b.kind === "resistor" && b.value <= 0) ||
-        ((b.kind === "wire" || b.kind === "capacitor") && b.value < 0),
-    )
-  )
-    return fail("Use finite values and positive resistance.");
+  if (branches.some((b) => parameterErrors(b).length))
+    return fail(
+      "Invalid component parameters. Select a component to inspect its errors.",
+    );
+
+  const conductance = (b: Branch) =>
+    isDiode(b) ? (conducting.has(b.id) ? 0.1 : 1e-9) : 1 / b.value;
+  const bias = (b: Branch) =>
+    isDiode(b) && conducting.has(b.id) ? b.value * (0.1 - 1e-9) : 0;
 
   const nodes = [...new Set(branches.flatMap((b) => [b.a, b.b]))];
   const ground =
@@ -110,7 +168,9 @@ export const solve = (branches: Branch[], reference?: string): Solution => {
 
       matrix[n + k][size] = b.kind === "source" ? b.value : 0;
     } else {
-      const g = 1 / b.value;
+      const g = conductance(b);
+      if (a >= 0) matrix[a][size] += bias(b);
+      if (z >= 0) matrix[z][size] -= bias(b);
 
       if (a >= 0) matrix[a][a] += g;
 
@@ -169,7 +229,7 @@ export const solve = (branches: Branch[], reference?: string): Solution => {
       ? 0
       : k >= 0
         ? matrix[n + k][size]
-        : voltage / b.value;
+        : voltage * conductance(b) - bias(b);
 
     if (![voltage, current].every(Number.isFinite))
       return fail("Numerical range exceeded.");

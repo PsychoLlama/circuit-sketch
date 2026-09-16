@@ -106,3 +106,52 @@ describe("DC circuit physics", () => {
       solve([source, r("R", "p", "g", 1e12)]).readings.R.current,
     ).toBeCloseTo(12e-12, 20));
 });
+
+describe("breadboard components", () => {
+  const led: Branch = { id: "L", kind: "led", a: "m", b: "g", value: 2 };
+
+  it("limits LED current with a series resistor and conserves power", () => {
+    const result = solve([source, r("R", "p", "m", 1000), led]);
+    expect(result.error).toBeUndefined();
+    expect(result.readings.L.current).toBeCloseTo(10 / 1010, 7);
+    expect(
+      Object.values(result.readings).reduce((sum, b) => sum + b.power, 0),
+    ).toBeCloseTo(0, 10);
+  });
+
+  it("blocks reverse bias and conducts above the forward voltage", () => {
+    for (const kind of ["led", "diode"] as const) {
+      const reverse = solve([
+        source,
+        r("R", "p", "m", 1000),
+        { ...led, kind, a: "g", b: "m" },
+      ]);
+      expect(reverse.error).toBeUndefined();
+      expect(Math.abs(reverse.readings.L.current)).toBeLessThan(1e-6);
+      const direct = solve([source, { ...led, kind, a: "p" }]);
+      expect(direct.readings.L.current).toBeGreaterThan(0.9);
+    }
+  });
+
+  it("keeps an LED off below its threshold", () => {
+    const result = solve([
+      { ...source, value: 1 },
+      r("R", "p", "m", 1000),
+      led,
+    ]);
+    expect(result.readings.L.current).toBeLessThan(1e-8);
+  });
+
+  it("models lamps and rheostats as resistive DC loads", () => {
+    for (const kind of ["lamp", "rheostat"] as const)
+      expect(
+        solve([source, { ...r("R", "p", "g", 100), kind }]).readings.R.current,
+      ).toBeCloseTo(0.12);
+  });
+
+  it("rejects invalid values for every new component", () => {
+    for (const kind of ["led", "diode", "lamp", "rheostat"] as const)
+      for (const value of [0, -1, Infinity, NaN])
+        expect(solve([source, { ...led, kind, value }]).error).toBeTruthy();
+  });
+});

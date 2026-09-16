@@ -1,6 +1,8 @@
 import { createMemo, createRoot } from "solid-js";
+import { createCircuitGraph } from "~/lib/circuit/graph";
 import {
-  solve,
+  toComponent,
+  toSolution,
   parameterErrors,
   isDiode,
   type Kind,
@@ -161,7 +163,16 @@ export const pan = () =>
 
 // This memo shares the browser editor's module lifetime. Server renders only
 // read the initial empty state; restoration and editing happen on the client.
-export const solution = createRoot(() => createMemo(() => solve(parts())));
+export const circuitGraph = createRoot(() =>
+  createCircuitGraph(
+    () => parts().map(toComponent),
+    undefined,
+    () => parts().find((part) => part.kind === "source")?.b,
+  ),
+);
+export const solution = createRoot(() =>
+  createMemo(() => toSolution(circuitGraph.snapshot())),
+);
 export const selectedPart = () => parts().find((p) => p.id === selected());
 export const hovered = () => parts().find((p) => p.id === hover()?.id);
 export const point = (node: string): { x: number; y: number } => {

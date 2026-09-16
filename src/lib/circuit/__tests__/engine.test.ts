@@ -143,6 +143,7 @@ describe("component equation engine", () => {
       () => [potential(0), potential(1)],
       () => [{ ...potential(0), rhs: Infinity }],
       () => [{ ...potential(0), voltage: { a: NaN } }],
+      () => [{ ...potential(0), voltage: { a: 1 } }],
       () => {
         throw new Error("Device cannot support this analysis.");
       },

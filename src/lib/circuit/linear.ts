@@ -61,6 +61,8 @@ export const satisfies = (matrix: number[][], values: number[]) =>
     );
 
     return (
-      Number.isFinite(residual) && Math.abs(residual) <= 1e-12 + 1e-9 * scale
+      Number.isFinite(residual) &&
+      Number.isFinite(scale) &&
+      Math.abs(residual) <= 1e-12 + 1e-9 * scale
     );
   });

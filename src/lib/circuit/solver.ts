@@ -1,7 +1,7 @@
 /** Compatibility adapter for persisted editor branches. Physics lives in component models. */
 import { analyze } from "./engine";
 import { models } from "./devices";
-import type { Component, Diagnostic } from "./model";
+import type { Component, Diagnostic, Snapshot } from "./model";
 
 export type Kind =
   | "source"
@@ -87,6 +87,10 @@ export const solve = (branches: Branch[], reference?: string): Solution => {
     { mode: "dc" },
     reference ?? branches.find((branch) => branch.kind === "source")?.b,
   );
+  return toSolution(result);
+};
+
+export const toSolution = (result: Snapshot): Solution => {
   return {
     readings: Object.fromEntries(
       Object.entries(result.components).map(([id, observation]) => [

@@ -1,9 +1,4 @@
-import type {
-  Analysis,
-  Component,
-  Diagnostic,
-  Snapshot,
-} from "./model";
+import type { Analysis, Component, Diagnostic, Snapshot } from "./model";
 import { satisfies, solveMatrix } from "./linear";
 
 export const analyze = (
@@ -100,6 +95,24 @@ export const analyze = (
           ])
             if (!Object.hasOwn(component.pins, pin))
               throw new Error(`Unknown pin ${pin} on ${component.id}.`);
+          const coefficients = Object.values(equation.voltage);
+          const sum = coefficients.reduce(
+            (total, coefficient) => total + coefficient,
+            0,
+          );
+          const scale = coefficients.reduce(
+            (total, coefficient) => total + Math.abs(coefficient),
+            0,
+          );
+
+          if (
+            !Number.isFinite(sum) ||
+            !Number.isFinite(scale) ||
+            Math.abs(sum) > 1e-12 * scale
+          )
+            throw new Error(
+              `Voltage coefficients on ${component.id} must be finite and sum to zero; express voltage differences between explicit pins.`,
+            );
           return { component, equation };
         });
       });
@@ -195,6 +208,19 @@ export const analyze = (
         observation.pins[equation.b].current -= current;
         observation.branches[equation.id] = { a, b, voltage, current, power };
       }
+      if (
+        Object.values(observations).some((observation) =>
+          Object.values(observation.pins).some(
+            (pin) => !Number.isFinite(pin.current),
+          ),
+        )
+      )
+        return fail([
+          {
+            code: "numerical",
+            message: "Pin current exceeded the numerical range.",
+          },
+        ]);
       return {
         analysis,
         reference: ground,

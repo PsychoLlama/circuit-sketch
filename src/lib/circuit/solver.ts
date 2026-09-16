@@ -21,6 +21,7 @@ export type Branch = {
   b: string;
   value: number;
   closed?: boolean;
+  initialVoltage?: number;
 };
 
 export type Reading = {
@@ -46,6 +47,8 @@ export const parameterErrors = (b: Branch): string[] => {
 
   if (!Object.hasOwn(models, b.kind))
     errors.push("Unsupported component kind.");
+  if (b.initialVoltage !== undefined && !Number.isFinite(b.initialVoltage))
+    errors.push("Initial voltage must be finite.");
   if (!b.id) errors.push("Component identifier is required.");
   if (b.closed !== undefined && typeof b.closed !== "boolean")
     errors.push("Switch state must be boolean.");
@@ -70,6 +73,14 @@ export const parameterErrors = (b: Branch): string[] => {
 export const toComponent = (branch: Branch): Component => ({
   id: branch.id,
   pins: { a: branch.a, b: branch.b },
+  ...(branch.kind === "capacitor"
+    ? {
+        capacitor: {
+          capacitance: branch.value,
+          initialVoltage: branch.initialVoltage ?? 0,
+        },
+      }
+    : {}),
   validate: (analysis) => [
     ...parameterErrors(branch),
     ...(branch.kind === "capacitor" && analysis.mode !== "dc"

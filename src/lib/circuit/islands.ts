@@ -1,3 +1,4 @@
+import { transient } from "./transient";
 import { analyze } from "./engine";
 import type { Analysis, Component, Snapshot } from "./model";
 
@@ -8,6 +9,7 @@ export const analyzeIslands = (
   components: readonly Component[],
   analysis: Analysis = { mode: "dc" },
   reference?: string,
+  transientTime?: number,
 ): Snapshot => {
   if (
     new Set(components.map((component) => component.id)).size !==
@@ -39,11 +41,11 @@ export const analyzeIslands = (
       }
     }
 
-    const snapshot = analyze(
-      group,
-      analysis,
-      reference && nodes.has(reference) ? reference : undefined,
-    );
+    const ground = reference && nodes.has(reference) ? reference : undefined;
+    const snapshot =
+      transientTime === undefined
+        ? analyze(group, analysis, ground)
+        : transient(group, transientTime, ground);
 
     Object.assign(result.nodes, snapshot.nodes);
     Object.assign(result.components, snapshot.components);

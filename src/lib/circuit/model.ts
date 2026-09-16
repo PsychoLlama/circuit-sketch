@@ -22,6 +22,7 @@ export type Context = {
  */
 export type Component = {
   id: string;
+  capacitor?: { capacitance: number; initialVoltage: number };
   pins: Readonly<Record<string, string>>;
   validate: (analysis: Analysis) => readonly string[];
   equations: (context: Context) => readonly Equation[];

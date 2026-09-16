@@ -88,7 +88,7 @@ editor-compatible model via `toComponent`. Calling `setParameters(true)` closes 
 and recomputes all dependent readings. The editor retains its existing immutable
 editing/history actions and passes `parts().map(toComponent)` to the graph.
 
-## Declarative time and future dynamics
+## Declarative time and capacitor dynamics
 
 `analyze(components, { mode: "snapshot", time: T }, reference)` evaluates memoryless
 networks at a finite, nonnegative time in seconds. `voltageSource` accepts a pure
@@ -97,17 +97,41 @@ at forward, backward, and widely separated times. These queries do not depend on
 query order, timers, or previous calls. DC analysis uses the source's separate DC
 value (default zero), not an arbitrary sample of the waveform.
 
-**Snapshot analysis is not transient integration.** A capacitor explicitly rejects
-snapshot mode. Capacitor transients need `I = dQ/dt`, initial conditions, and the
-input history; evaluating only the source voltage at T cannot determine charge.
-A future transient analysis can extend the analysis/context contract with initial
-conditions and derivative/charge equations, then integrate deterministically from
-an immutable initial state to T. Integration history and optional caches belong to
-that analysis, not UI intervals or hidden mutable component state. The graph API
-can still expose a pure requested-time accessor.
+**Snapshot analysis is not transient integration.** `transient(components, T,
+reference)` computes capacitor state from initial voltages at t = 0. The editor
+uses this through the island adapter and retains an explicit DC equilibrium mode.
+Capacitors default to zero initial voltage; signed initial voltage is A minus B.
+At every integration stage, capacitor voltages constrain a simultaneous network
+solve. Its currents give `dV/dt = I/C`. Charge on A is `CV`, energy is `½CV²`, and
+negative capacitor power means stored energy is being returned to the circuit.
+The RC tests use the analytical solution `V(t) = Vs + (V0 − Vs) exp(−t/RC)`;
+see [OpenStax RC circuits](https://openstax.org/books/university-physics-volume-2/pages/10-5-rc-circuits).
 
-Combinational gates can use multiport branch models with explicit input/output and
-supply behavior. Sequential ICs and oscillators with stored state need the same
-initial-condition/history treatment as other dynamic devices; they are not yet
-implemented. A voltage-controlled ideal source is supported as an extension example,
-but is not presented as a realistic powered IC.
+Integration uses adaptive RK4 step doubling with local voltage error scaling
+`1e-11 V + 1e-9 × max(|Vold|, |Vnew|)`. This is a numerical approximation, not
+an exact exponential solver or a guarantee of global error. Each query starts
+from the immutable initial conditions, including queries backward in time.
+There is a 10,000-attempt work limit; stiff or extreme-duration queries can fail
+with an explicit diagnostic. Failed islands expose no partial transient readings.
+
+The current initial-value formulation requires independent capacitor voltage
+constraints and uniquely solvable branch currents. Ideal capacitor loops,
+including parallel ideal capacitors or capacitors directly across ideal voltage
+sources, are rejected rather than assigning arbitrary currents or hiding impulses.
+Use finite physical series resistance. Isolated charged capacitors retain their
+voltage; DC equilibrium cannot infer that voltage from capacitance alone.
+The capacitor metadata contract uses pins `a`, `b` and branch `main`.
+Waveforms must be smooth enough for numerical sampling; scheduled discontinuities
+and switching histories are not supported by this transient API.
+
+The editor applies sources and switch positions from t = 0. Editing defines a
+new experiment and recomputes the requested time from the initial conditions;
+clicking a switch does not splice a switching event into an ongoing history.
+Playback time is `timeAnchor + (timestamp − wallAnchor) × speed`. Animation frames
+only supply a clock timestamp, never capacitor charge, voltage, or accumulated
+simulation steps. Pause, seek, and speed changes re-anchor time continuously.
+The default speed is 0.001× so the default 1 ms RC time constant is visible.
+
+Sequential ICs and oscillators with stored state need their own dynamic model;
+they are not yet implemented. A voltage-controlled ideal source is supported as
+an extension example, but is not presented as a realistic powered IC.

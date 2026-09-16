@@ -5,6 +5,8 @@ import {
   make,
   selectPart,
   centerCircuit,
+  changeZoom,
+  resetZoom,
   mountLab,
   cancelDrag,
   canvas,
@@ -35,6 +37,7 @@ import {
   solution,
   inspectedPart,
   joinTerminal,
+  circuitBounds,
   parseCircuit,
 } from "../formulas";
 import {
@@ -261,6 +264,34 @@ describe("canvas scrolling", () => {
       preventDefault: vi.fn(),
       ...options,
     }) as unknown as WheelEvent;
+
+  it("keeps the circuit centered through zoom and resets a panned view", () => {
+    setViewport({ width: 800, height: 600 });
+    example("series");
+    const bounds = circuitBounds(parts())!;
+
+    changeZoom(1.5);
+    expect(pan().x + ((bounds.left + bounds.right) / 2) * 1.5).toBe(400);
+    expect(pan().y + ((bounds.top + bounds.bottom) / 2) * 1.5).toBe(300);
+    scroll(wheel(80, 80));
+    resetZoom();
+    expect(pan().x + (bounds.left + bounds.right) / 2).toBe(400);
+    expect(pan().y + (bounds.top + bounds.bottom) / 2).toBe(300);
+  });
+
+  it("allows placement beyond the old top-left coordinate boundary", () => {
+    setViewport({ width: 800, height: 600 });
+    drop({
+      clientX: -100,
+      clientY: -80,
+      currentTarget: {
+        closest: () => ({ getBoundingClientRect: () => ({ left: 0, top: 0 }) }),
+      },
+      dataTransfer: { getData: () => "resistor" },
+      preventDefault: vi.fn(),
+    } as unknown as DragEvent);
+    expect(parts()[0]).toMatchObject({ x: -100, y: -80 });
+  });
 
   it("scrolls both axes without changing the circuit or undo history", () => {
     example("series");
@@ -627,6 +658,13 @@ describe("editor lifecycle", () => {
         canvasElement,
         expect.any(Function),
       );
+
+      example("series");
+      const resize = observe.mock.calls[0][1];
+      resize({ width: 800, height: 600 });
+      const before = pan();
+      resize({ width: 1000, height: 800 });
+      expect(pan()).toEqual({ x: before.x + 100, y: before.y + 100 });
 
       expect(stopKeys).not.toHaveBeenCalled();
       expect(stopResize).not.toHaveBeenCalled();

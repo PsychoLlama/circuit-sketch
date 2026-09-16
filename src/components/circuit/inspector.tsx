@@ -10,7 +10,8 @@ import {
   nodeCount,
   circuitPower,
   format,
-  ratingDescription,
+  specifications,
+  descriptions,
   connections,
   valueLabel,
 } from "~/state/circuit/formulas";
@@ -68,14 +69,17 @@ const Inspector = () => {
       >
         {(p) => (
           <>
-            <div class="selection-title">
-              <svg viewBox="-55 -30 110 60">
-                <Symbol kind={p().kind} closed={p().closed} />
-              </svg>
-              <div>
-                <h2>{p().id}</h2>
-                <span>{componentName(p().kind)}</span>
+            <div class="selection-summary">
+              <div class="selection-title">
+                <svg viewBox="-55 -30 110 60">
+                  <Symbol kind={p().kind} closed={p().closed} />
+                </svg>
+                <div>
+                  <h2>{p().id}</h2>
+                  <span>{componentName(p().kind)}</span>
+                </div>
               </div>
+              <p class="component-description">{descriptions[p().kind]}</p>
             </div>
             <div class="panel-section">
               <span class="eyebrow">PROPERTIES</span>
@@ -113,47 +117,17 @@ const Inspector = () => {
             </div>
             <div class="panel-section">
               <span class="eyebrow">SPECS</span>
-              <p class="rating-note">
-                Model ratings: {ratingDescription(p())}.
-              </p>
-              <Show when={p().kind === "led" || p().kind === "diode"}>
-                <p class="rating-note">
-                  A: anode (+), B: cathode (−). Piecewise-linear DC model with
-                  10 Ω forward resistance and 1 GΩ reverse resistance. Use a
-                  series resistor for LEDs.
-                </p>
-              </Show>
-              <Show when={p().kind === "lamp"}>
-                <p class="rating-note">
-                  Fixed resistance model; filament heating is not simulated.
-                </p>
-              </Show>
-              <Show when={p().kind === "rheostat"}>
-                <p class="rating-note">
-                  Two-terminal variable resistor. Adjust resistance above.
-                </p>
-              </Show>
+              <dl class="measurements specs">
+                <For each={specifications(p())}>
+                  {(spec) => (
+                    <div>
+                      <dt>{spec.label}</dt>
+                      <dd>{spec.value}</dd>
+                    </div>
+                  )}
+                </For>
+              </dl>
             </div>
-            <Show when={p().kind === "switch"}>
-              <div class="panel-section">
-                <span class="eyebrow">CONTROLS</span>
-                <label>
-                  Switch position
-                  <select
-                    aria-label="Switch position"
-                    value={p().closed ? "closed" : "open"}
-                    onChange={(e) =>
-                      update(p().id, {
-                        closed: e.currentTarget.value === "closed",
-                      })
-                    }
-                  >
-                    <option value="closed">Closed</option>
-                    <option value="open">Open</option>
-                  </select>
-                </label>
-              </div>
-            </Show>
             <div class="panel-section">
               <span class="eyebrow">VALIDATION</span>
               <Show
@@ -183,7 +157,21 @@ const Inspector = () => {
                 <Show when={p().kind === "switch"}>
                   <div>
                     <dt>Position</dt>
-                    <dd>{p().closed ? "Closed" : "Open"}</dd>
+                    <dd>
+                      <select
+                        class="state-control"
+                        aria-label="Switch position"
+                        value={p().closed ? "closed" : "open"}
+                        onChange={(e) =>
+                          update(p().id, {
+                            closed: e.currentTarget.value === "closed",
+                          })
+                        }
+                      >
+                        <option value="closed">Closed</option>
+                        <option value="open">Open</option>
+                      </select>
+                    </dd>
                   </div>
                 </Show>
                 <Show when={p().kind === "capacitor"}>

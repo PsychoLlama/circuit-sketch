@@ -59,10 +59,17 @@ export const bindCanvas = (canvas: SVGSVGElement) => {
   onMount(() =>
     onCleanup(
       observeCanvas(canvas, (size) => {
-        const initial = !viewport().width;
+        const previous = viewport();
+        const current = pan();
+        const initial = !previous.width;
 
         setViewport(size);
         if (initial) centerCircuit();
+        else
+          setOffset({
+            x: current.x + (size.width - previous.width) / 2,
+            y: current.y + (size.height - previous.height) / 2,
+          });
       }),
     ),
   );
@@ -195,8 +202,8 @@ export const place = (kind: Kind, e: MouseEvent) => {
 
   const p = make(
     kind,
-    Math.max(60, Math.round(pos.x / 20) * 20),
-    Math.max(60, Math.round(pos.y / 20) * 20),
+    Math.round(pos.x / 20) * 20,
+    Math.round(pos.y / 20) * 20,
   );
 
   change([...parts(), p]);
@@ -283,8 +290,8 @@ export const move = (e: PointerEvent) => {
       p.id === drag.id
         ? {
             ...p,
-            x: Math.max(60, Math.round((drag.x + pos.x - drag.px) / 20) * 20),
-            y: Math.max(60, Math.round((drag.y + pos.y - drag.py) / 20) * 20),
+            x: Math.round((drag.x + pos.x - drag.px) / 20) * 20,
+            y: Math.round((drag.y + pos.y - drag.py) / 20) * 20,
           }
         : p,
     ),
@@ -522,9 +529,26 @@ export const clickPin = (event: MouseEvent) => {
   setSuppressClick(false);
 };
 
-export const zoomOut = () => setZoom((zoom) => Math.max(0.5, zoom - 0.1));
-export const resetZoom = () => setZoom(1);
-export const zoomIn = () => setZoom((zoom) => Math.min(1.5, zoom + 0.1));
+export const changeZoom = (next: number) => {
+  const current = pan();
+  const size = viewport();
+  const ratio = next / zoom();
+
+  setOffset({
+    x: size.width / 2 - (size.width / 2 - current.x) * ratio,
+    y: size.height / 2 - (size.height / 2 - current.y) * ratio,
+  });
+  setZoom(next);
+};
+
+export const zoomOut = () => changeZoom(Math.max(0.5, zoom() - 0.1));
+export const resetZoom = () => {
+  setZoom(1);
+  centerCircuit();
+};
+
+export const zoomIn = () => changeZoom(Math.min(1.5, zoom() + 0.1));
+
 export const changeKind = (id: string, kind: Kind) =>
   update(id, { kind, value: defaults[kind], closed: true });
 

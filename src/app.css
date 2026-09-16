@@ -530,8 +530,16 @@ header {
   font-size: 10px;
   text-decoration: none;
 }
-.selection-title {
+.selection-summary {
   padding: 23px 19px;
+}
+.component-description {
+  margin: 16px 0 0;
+  color: #748078;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.selection-title {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -621,6 +629,8 @@ select {
 .measurements > div {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid #edf0ed;
 }
@@ -1000,4 +1010,14 @@ footer > span:last-child {
   width: 34px;
   height: 24px;
   flex-shrink: 0;
+}
+
+.specs dd {
+  text-align: right;
+}
+.measurements .state-control {
+  margin: 0;
+  width: auto;
+  min-width: 88px;
+  padding: 4px 7px;
 }

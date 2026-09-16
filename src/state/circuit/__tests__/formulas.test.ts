@@ -6,6 +6,7 @@ import {
   parseCircuit,
   currentFlow,
   constrainOffset,
+  circuitBounds,
 } from "../formulas";
 
 import { solve, type Kind } from "~/lib/circuit/solver";
@@ -15,6 +16,24 @@ const bounds = { left: 100, right: 500, top: 80, bottom: 280 };
 const viewport = { width: 800, height: 600 };
 
 describe("canvas scroll limits", () => {
+  it("includes routed wire bends when framing a circuit", () => {
+    expect(
+      circuitBounds([
+        {
+          id: "W1",
+          kind: "wire",
+          value: 0,
+          a: "a",
+          b: "b",
+          x: 0,
+          y: 0,
+          ends: { a: { x: 100, y: 100 }, b: { x: 200, y: 200 } },
+          via: [{ x: -300, y: 900 }],
+        },
+      ]),
+    ).toEqual({ left: -312, right: 212, top: 88, bottom: 912 });
+  });
+
   it("preserves 30% of the canvas on each axis at both extremes", () => {
     expect(
       constrainOffset({ x: -10000, y: -10000 }, bounds, 1, viewport),

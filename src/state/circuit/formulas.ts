@@ -81,6 +81,22 @@ export const catalog: {
   },
 ];
 
+export const descriptions: Record<Kind, string> = {
+  source:
+    "Maintains a fixed voltage difference between its terminals, supplying or absorbing electrical energy.",
+  resistor: "Opposes current flow and converts electrical energy into heat.",
+  switch:
+    "Completes the electrical path when closed and interrupts it when open.",
+  capacitor:
+    "Stores energy in an electric field. At DC equilibrium, no current flows through it.",
+  led: "Emits light when forward current flows from its anode to its cathode.",
+  diode:
+    "Conducts primarily from its anode to its cathode and opposes reverse current.",
+  rheostat: "Provides adjustable resistance to vary current flow.",
+  lamp: "Converts electrical energy into light and heat in a resistive filament.",
+  wire: "Connects terminals to provide a path for current.",
+};
+
 export const defaults: Record<Kind, number> = {
   led: 2,
   diode: 0.7,
@@ -315,22 +331,28 @@ export const currentFlow = (current: number | undefined, maximum: number) => {
 
 // Include terminal routing (24 units beyond the pins) and component labels.
 export const circuitBounds = (parts: Part[]) => {
-  const items = [
-    ...components(parts),
-    ...wires(parts).flatMap((p) =>
-      Object.values(p.ends ?? {})
-        .filter((end) => end !== undefined)
-        .map((end) => ({ ...end, terminalOffset: 0 })),
-    ),
-  ];
+  const items = components(parts);
+  const points = wires(parts).flatMap((part) => routeFor(parts, part));
 
-  if (!items.length) return undefined;
+  if (!items.length && !points.length) return undefined;
 
   return {
-    left: Math.min(...items.map((p) => p.x - (p.terminalOffset ?? 48) - 24)),
-    right: Math.max(...items.map((p) => p.x + (p.terminalOffset ?? 48) + 24)),
-    top: Math.min(...items.map((p) => p.y - 60)),
-    bottom: Math.max(...items.map((p) => p.y + 76)),
+    left: Math.min(
+      ...items.map((p) => p.x - (p.terminalOffset ?? 48) - 24),
+      ...points.map((p) => p.x - 12),
+    ),
+    right: Math.max(
+      ...items.map((p) => p.x + (p.terminalOffset ?? 48) + 24),
+      ...points.map((p) => p.x + 12),
+    ),
+    top: Math.min(
+      ...items.map((p) => p.y - 60),
+      ...points.map((p) => p.y - 12),
+    ),
+    bottom: Math.max(
+      ...items.map((p) => p.y + 76),
+      ...points.map((p) => p.y + 12),
+    ),
   };
 };
 
@@ -537,25 +559,33 @@ export const componentErrors = (
   return errors;
 };
 
-export const ratingDescription = (part: Part) => {
+export const specifications = (
+  part: Part,
+): { label: string; value: string }[] => {
   const limit = ratings[part.kind];
-
-  return [
-    Number.isFinite(limit.power)
-      ? `${format(limit.power, "W")} maximum power`
-      : "",
-    Number.isFinite(limit.current)
-      ? `${format(limit.current, "A")} maximum current`
-      : "",
-    Number.isFinite(limit.voltage)
-      ? `${format(limit.voltage, "V")} maximum voltage`
-      : "",
-    Number.isFinite(limit.reverse)
-      ? `${format(limit.reverse, "V")} maximum reverse voltage`
-      : "",
+  const rows = [
+    { label: "Maximum power", value: limit.power, unit: "W" },
+    { label: "Maximum current", value: limit.current, unit: "A" },
+    { label: "Maximum voltage", value: limit.voltage, unit: "V" },
+    { label: "Maximum reverse voltage", value: limit.reverse, unit: "V" },
   ]
-    .filter(Boolean)
-    .join(" · ");
+    .filter((row) => Number.isFinite(row.value))
+    .map((row) => ({ label: row.label, value: format(row.value, row.unit) }));
+
+  if (isDiode(part))
+    rows.push(
+      { label: "Model", value: "Piecewise-linear DC" },
+      { label: "Terminal A", value: "Anode (+)" },
+      { label: "Terminal B", value: "Cathode (−)" },
+      { label: "Forward resistance", value: "10 Ω" },
+      { label: "Reverse resistance", value: "1 GΩ" },
+    );
+  if (part.kind === "lamp")
+    rows.push(
+      { label: "Model", value: "Fixed resistance" },
+      { label: "Filament heating", value: "Not simulated" },
+    );
+  return rows;
 };
 
 export const connections = (parts: Part[], part: Part) =>

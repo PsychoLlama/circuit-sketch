@@ -1,5 +1,7 @@
-import { onMount, onCleanup } from "solid-js";
+import { createEffect, onMount, onCleanup } from "solid-js";
 import {
+  timestamp,
+  observeFrames,
   listenForKeys,
   pinAt,
   observeCanvas,
@@ -7,6 +9,7 @@ import {
   writeCircuit,
 } from "./effects";
 import {
+  timeAt,
   catalog,
   componentCatalog,
   defaults,
@@ -21,6 +24,12 @@ import {
 } from "./formulas";
 import { type Kind } from "~/lib/circuit/solver";
 import {
+  setAnalysisMode,
+  setRequestedTime,
+  playback,
+  setPlayback,
+  requestedTime,
+  setFrameTime,
   drag as activeDrag,
   future,
   history,
@@ -499,6 +508,9 @@ export const mountLab = () => {
   onMount(() => {
     restore();
     onCleanup(listenForKeys(key));
+    createEffect(() => {
+      if (playback().running) onCleanup(observeFrames(setFrameTime));
+    });
   });
 };
 
@@ -596,4 +608,46 @@ export const startTerminal = (event: PointerEvent, node: string) => {
   (event.currentTarget as Element)
     .closest("svg")
     ?.setPointerCapture(event.pointerId);
+};
+
+export const chooseAnalysis = (mode: "dc" | "transient") => {
+  if (playback().running) togglePlayback();
+  setAnalysisMode(mode);
+};
+
+export const seekTime = (time: number) => {
+  if (!Number.isFinite(time) || time < 0) return;
+  const now = timestamp();
+
+  setRequestedTime(time);
+  setFrameTime(now);
+  setPlayback((p) => ({ ...p, timeAnchor: time, wallAnchor: now }));
+};
+
+export const togglePlayback = () => {
+  const now = timestamp();
+  const time = timeAt(playback(), now, requestedTime());
+
+  setRequestedTime(time);
+  setFrameTime(now);
+  setPlayback((p) => ({
+    ...p,
+    running: !p.running,
+    timeAnchor: time,
+    wallAnchor: now,
+  }));
+};
+
+export const changeSpeed = (speed: number) => {
+  if (!Number.isFinite(speed) || speed <= 0) return;
+  const now = timestamp();
+  const time = timeAt(playback(), now, requestedTime());
+
+  setRequestedTime(time);
+  setFrameTime(now);
+  setPlayback((p) => ({ ...p, speed, timeAnchor: time, wallAnchor: now }));
+};
+
+export const setInitialVoltage = (id: string, initialVoltage: number) => {
+  if (Number.isFinite(initialVoltage)) update(id, { initialVoltage });
 };

@@ -1,4 +1,6 @@
 import { mountLab } from "~/state/circuit/actions";
+import { analysisLabel } from "~/state/circuit/formulas";
+import Timeline from "./timeline";
 import Library from "./library";
 import Editor from "./editor";
 import Inspector from "./inspector";
@@ -18,9 +20,10 @@ const CircuitLab = () => {
           <span class="live">
             <span class="status-dot" /> LIVE SOLVER
           </span>
-          <span class="version">DC</span>
+          <span class="version">RC</span>
         </div>
       </header>
+      <Timeline />
       <div class="workspace">
         <Library />
         <Editor />
@@ -28,13 +31,13 @@ const CircuitLab = () => {
       </div>
       <footer>
         <span>
-          <span class="status-dot" /> DC steady state
+          <span class="status-dot" /> {analysisLabel()}
         </span>
         <span>
           Click or drag terminals to wire <i>·</i> Drag to move <i>·</i>{" "}
           Backspace to delete <i>·</i> Esc to cancel
         </span>
-        <span>DC COMPONENT MODELS</span>
+        <span>IDEAL CIRCUIT MODELS</span>
       </footer>
     </main>
   );

@@ -71,3 +71,17 @@ export const [serial, setSerial] = createResettableSignal(() => 0);
 export const [terminalDrag, setTerminalDrag] = createResettableSignal<
   { node: string; before: Part[] } | undefined
 >(() => undefined);
+
+export const [analysisMode, setAnalysisMode] = createResettableSignal<
+  "dc" | "transient"
+>(() => "transient");
+export const [requestedTime, setRequestedTime] = createResettableSignal(
+  () => 0,
+);
+export const [playback, setPlayback] = createResettableSignal(() => ({
+  running: false,
+  speed: 0.001,
+  wallAnchor: 0,
+  timeAnchor: 0,
+}));
+export const [frameTime, setFrameTime] = createResettableSignal(() => 0);

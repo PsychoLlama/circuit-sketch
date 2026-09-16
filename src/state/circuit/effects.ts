@@ -45,3 +45,16 @@ export const writeCircuit = (value: string) => {
     // Editing remains available when browser storage is unavailable or full.
   }
 };
+
+export const timestamp = () => performance.now();
+
+export const observeFrames = (frame: (time: number) => void) => {
+  let id: number;
+  const tick = (time: number) => {
+    frame(time);
+    id = requestAnimationFrame(tick);
+  };
+
+  id = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(id);
+};

@@ -11,6 +11,10 @@ import {
 } from "~/lib/circuit/solver";
 import {
   parts,
+  analysisMode,
+  requestedTime,
+  playback,
+  frameTime,
   offset,
   zoom,
   viewport,
@@ -47,7 +51,7 @@ export const catalog: {
     kind: "capacitor",
     name: "Capacitor",
     key: "C",
-    description: "Open circuit at DC equilibrium",
+    description: "Stores charge · explore charging and discharge",
   },
   {
     kind: "led",
@@ -177,14 +181,35 @@ export const powerBalance = (solution: Solution) =>
 export const pan = () =>
   constrainOffset(offset(), circuitBounds(parts()), zoom(), viewport());
 
+export const timeAt = (
+  anchor: {
+    running: boolean;
+    speed: number;
+    wallAnchor: number;
+    timeAnchor: number;
+  },
+  now: number,
+  pausedTime: number,
+) =>
+  anchor.running
+    ? anchor.timeAnchor +
+      (Math.max(0, now - anchor.wallAnchor) * anchor.speed) / 1000
+    : pausedTime;
+
+export const simulationTime = () =>
+  timeAt(playback(), frameTime(), requestedTime());
+
 // This memo shares the browser editor's module lifetime. Server renders only
 // read the initial empty state; restoration and editing happen on the client.
 export const circuitGraph = createRoot(() => ({
   snapshot: createMemo(() =>
     analyzeIslands(
       parts().map(toComponent),
-      undefined,
+      analysisMode() === "dc"
+        ? { mode: "dc" }
+        : { mode: "snapshot", time: simulationTime() },
       parts().find((part) => part.kind === "source")?.b,
+      analysisMode() === "transient" ? simulationTime() : undefined,
     ),
   ),
 }));
@@ -406,6 +431,8 @@ export const parseCircuit = (raw: string | null): Part[] | undefined => {
           typeof p.b === "string" &&
           catalog.some((c) => c.kind === p.kind) &&
           Number.isFinite(p.value) &&
+          (p.initialVoltage === undefined ||
+            Number.isFinite(p.initialVoltage)) &&
           Number.isFinite(p.x) &&
           Number.isFinite(p.y) &&
           (p.closed === undefined || typeof p.closed === "boolean") &&
@@ -669,3 +696,8 @@ export const joinTerminal = (
     .filter((p) => p.id !== second.id)
     .map((p) => (p.id === first.id ? merged : p));
 };
+
+export const analysisLabel = () =>
+  analysisMode() === "dc"
+    ? "DC equilibrium"
+    : `Transient · t = ${format(simulationTime(), "s")}`;

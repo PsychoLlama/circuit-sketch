@@ -39,6 +39,15 @@ const Measurements = (props: { part: Part }) => {
         </div>
         <Show when={props.part.kind === "capacitor"}>
           <div>
+            <dt>Charge on A · CV</dt>
+            <dd>
+              {format(
+                reading() ? props.part.value * reading()!.voltage : undefined,
+                "C",
+              )}
+            </dd>
+          </div>
+          <div>
             <dt>Stored energy · ½CV²</dt>
             <dd>{format(storedEnergy(props.part, reading()), "J")}</dd>
           </div>

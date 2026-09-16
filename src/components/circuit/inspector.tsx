@@ -1,4 +1,5 @@
 import {
+  analysisLabel,
   errors,
   hovered,
   inspectedPart,
@@ -16,6 +17,7 @@ import {
   valueLabel,
 } from "~/state/circuit/formulas";
 import {
+  setInitialVoltage,
   changeKind,
   remove,
   setValue,
@@ -114,6 +116,20 @@ const Inspector = () => {
                   />
                 </label>
               </Show>
+              <Show when={p().kind === "capacitor"}>
+                <label>
+                  Initial voltage A − B (V)
+                  <input
+                    aria-label="Initial capacitor voltage"
+                    type="number"
+                    step="any"
+                    value={p().initialVoltage ?? 0}
+                    onInput={(e) =>
+                      setInitialVoltage(p().id, e.currentTarget.valueAsNumber)
+                    }
+                  />
+                </label>
+              </Show>
             </div>
             <div class="panel-section">
               <span class="eyebrow">SPECS</span>
@@ -177,7 +193,7 @@ const Inspector = () => {
                 <Show when={p().kind === "capacitor"}>
                   <div>
                     <dt>State</dt>
-                    <dd>DC equilibrium</dd>
+                    <dd>{analysisLabel()}</dd>
                   </div>
                 </Show>
               </dl>
@@ -223,7 +239,7 @@ const Inspector = () => {
         </div>
       </Show>
       <div class="model-note">
-        <span class="status-dot" /> DC steady state{" "}
+        <span class="status-dot" /> {analysisLabel()}{" "}
       </div>
     </aside>
   );

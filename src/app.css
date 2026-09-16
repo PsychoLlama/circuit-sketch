@@ -1021,3 +1021,36 @@ footer > span:last-child {
   min-width: 88px;
   padding: 4px 7px;
 }
+
+.timeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #dce1df;
+  font-size: 12px;
+}
+.timeline label {
+  display: grid;
+  gap: 4px;
+}
+.timeline input[type="number"] {
+  width: 110px;
+}
+.timeline p {
+  flex-basis: 100%;
+  margin: 0;
+  opacity: 0.7;
+}
+
+.timeline button {
+  padding: 8px 12px;
+  border: 1px solid #dce1df;
+  border-radius: 6px;
+  background: white;
+}
+.timeline strong {
+  font-variant-numeric: tabular-nums;
+  min-width: 160px;
+}

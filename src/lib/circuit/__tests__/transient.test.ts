@@ -54,6 +54,20 @@ describe("capacitor initial-value queries", () => {
     expect(result.diagnostics).toEqual([]);
     const c = result.components.C.branches.main;
     const c2 = result.components.C2.branches.main;
+    const slow = (3 - Math.sqrt(5)) / 2;
+    const fast = (3 + Math.sqrt(5)) / 2;
+    expect(c.voltage).toBeCloseTo(
+      9 *
+        (1 -
+          ((fast - 1) * Math.exp(-slow) + (1 - slow) * Math.exp(-fast)) /
+            (fast - slow)),
+      6,
+    );
+    expect(c2.voltage).toBeCloseTo(
+      9 *
+        (1 - (fast * Math.exp(-slow) - slow * Math.exp(-fast)) / (fast - slow)),
+      6,
+    );
     expect(c.voltage).toBeGreaterThan(c2.voltage);
     expect(c2.voltage).toBeGreaterThan(0);
     expect(result.components.R.branches.main.current).toBeCloseTo(
@@ -61,6 +75,18 @@ describe("capacitor initial-value queries", () => {
       12,
     );
   });
+  it("integrates the existing nonlinear diode model with a capacitor", () => {
+    const circuit = rc();
+    circuit[1] = { ...circuit[1], a: "d" };
+    circuit.push({ id: "D", kind: "diode", a: "s", b: "d", value: 0.7 });
+    const result = query(circuit, 0.001);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.components.C.branches.main.voltage).toBeCloseTo(
+      (9 - 0.7 * (1 - 1e-8)) * (1 - Math.exp(-0.001 / 0.00101)),
+      6,
+    );
+  });
+
   it("rejects impulses and invalid conditions without stale readings", () => {
     for (const result of [
       query(rc(NaN), 1),

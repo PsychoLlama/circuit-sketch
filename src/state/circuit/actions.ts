@@ -9,7 +9,6 @@ import {
 import {
   catalog,
   componentCatalog,
-  componentErrors,
   defaults,
   createFormulas,
   circuitBounds,
@@ -23,13 +22,6 @@ import { createData, type Part } from "./data";
 export const createLab = () => {
   const d = createData();
   let serial = 0;
-  const pan = () =>
-    constrainOffset(
-      d.offset(),
-      circuitBounds(d.parts()),
-      d.zoom(),
-      d.viewport(),
-    );
 
   const bindCanvas = (canvas: SVGSVGElement) => {
     onMount(() => onCleanup(observeCanvas(canvas, d.setViewport)));
@@ -57,6 +49,9 @@ export const createLab = () => {
     if (d.pending()) d.setPreview(coords(e));
   };
   const {
+    pan,
+    inspectedPart,
+    errors,
     solution,
     selectedPart: selected,
     hovered,
@@ -430,11 +425,20 @@ export const createLab = () => {
     drop,
     startPin,
     cancelDrag,
-    inspectedPart: () => {
-      const part = selected() ?? hovered();
-      return part?.kind === "wire" ? undefined : part;
+    inspectedPart,
+    errors,
+    toggleLabels: () => d.setLabels((labels) => !labels),
+    allowDrop: (event: DragEvent) => event.preventDefault(),
+    previewPart: (event: PointerEvent, id: string) =>
+      d.setHover({ id, x: event.clientX, y: event.clientY }),
+    clearHover: () => d.setHover(undefined),
+    clickPin: (event: MouseEvent) => {
+      event.stopPropagation();
+      d.setSuppressClick(false);
     },
-    errors: (part: Part) => componentErrors(part, d.parts(), solution()),
+    zoomOut: () => d.setZoom((zoom) => Math.max(0.5, zoom - 0.1)),
+    resetZoom: () => d.setZoom(1),
+    zoomIn: () => d.setZoom((zoom) => Math.min(1.5, zoom + 0.1)),
     changeKind: (id: string, kind: Kind) =>
       update(id, { kind, value: defaults[kind], closed: true }),
     setValue: (id: string, value: number) => {

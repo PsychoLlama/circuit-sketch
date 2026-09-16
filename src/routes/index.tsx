@@ -1,4 +1,4 @@
-import CircuitLab from "~/components/circuit/Lab";
+import CircuitLab from "~/components/circuit/lab";
 
 const Home = () => {
   return <CircuitLab />;

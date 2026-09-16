@@ -149,6 +149,14 @@ export const powerBalance = (solution: Solution) =>
   );
 
 export const createFormulas = (d: ReturnType<typeof createData>) => {
+  const pan = () =>
+    constrainOffset(
+      d.offset(),
+      circuitBounds(d.parts()),
+      d.zoom(),
+      d.viewport(),
+    );
+
   const parts = d.parts;
   const solution = createMemo(() => solve(parts()));
   const selectedPart = createMemo(() =>
@@ -245,7 +253,24 @@ export const createFormulas = (d: ReturnType<typeof createData>) => {
       ),
     );
 
-  return { solution, selectedPart, hovered, point, path, wireLabel, flow };
+  const inspectedPart = () => {
+    const part = selectedPart() ?? hovered();
+    return part?.kind === "wire" ? undefined : part;
+  };
+  const errors = (part: Part) => componentErrors(part, parts(), solution());
+
+  return {
+    pan,
+    inspectedPart,
+    errors,
+    solution,
+    selectedPart,
+    hovered,
+    point,
+    path,
+    wireLabel,
+    flow,
+  };
 };
 
 export const currentFlow = (current: number | undefined, maximum: number) => {

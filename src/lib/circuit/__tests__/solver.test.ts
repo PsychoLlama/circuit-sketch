@@ -155,3 +155,74 @@ describe("breadboard components", () => {
         expect(solve([source, { ...led, kind, value }]).error).toBeTruthy();
   });
 });
+
+describe("solver invariants", () => {
+  it("conserves current and power in an unbalanced bridge for either polarity and any reference", () => {
+    for (const voltage of [-12, 0, 9]) {
+      const branches = [
+        { ...source, value: voltage },
+        r("R1", "p", "x", 100),
+        r("R2", "x", "g", 220),
+        r("R3", "p", "y", 330),
+        r("R4", "y", "g", 470),
+        r("R5", "x", "y", 680),
+      ];
+      const baseline = solve(branches);
+
+      for (const reference of ["p", "x", "y", "g"]) {
+        const result = solve(branches, reference);
+        expect(result.error).toBeUndefined();
+        expect(result.nodes[reference]).toBe(0);
+
+        for (const node of Object.keys(result.nodes)) {
+          const netCurrent = branches.reduce((sum, branch) => {
+            const current = result.readings[branch.id].current;
+            return (
+              sum +
+              (branch.a === node ? current : 0) -
+              (branch.b === node ? current : 0)
+            );
+          }, 0);
+          expect(netCurrent).toBeCloseTo(0, 12);
+        }
+
+        for (const branch of branches) {
+          const reading = result.readings[branch.id];
+          expect(reading.voltage).toBeCloseTo(
+            baseline.readings[branch.id].voltage,
+            10,
+          );
+          expect(reading.current).toBeCloseTo(
+            baseline.readings[branch.id].current,
+            12,
+          );
+          if (branch.kind === "resistor") {
+            expect(reading.current).toBeCloseTo(
+              reading.voltage / branch.value,
+              12,
+            );
+            expect(reading.power).toBeGreaterThanOrEqual(0);
+          }
+        }
+
+        expect(
+          Object.values(result.readings).reduce(
+            (sum, reading) => sum + reading.power,
+            0,
+          ),
+        ).toBeCloseTo(0, 12);
+      }
+    }
+  });
+
+  it("rejects duplicate identifiers and missing reference nodes without partial readings", () => {
+    for (const result of [
+      solve([source, r("V", "p", "g", 100)]),
+      solve([source, r("R", "p", "g", 100)], "missing"),
+    ]) {
+      expect(result.error).toBeTruthy();
+      expect(result.readings).toEqual({});
+      expect(result.nodes).toEqual({});
+    }
+  });
+});

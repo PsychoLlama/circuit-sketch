@@ -13,8 +13,8 @@ import {
   valueLabel,
 } from "~/state/circuit/formulas";
 import type { Kind } from "~/lib/circuit/solver";
-import Symbol from "./Symbol";
-import Measurements from "./Measurements";
+import Symbol from "./symbol";
+import Measurements from "./measurements";
 
 const Inspector = (props: { lab: Lab }) => {
   const lab = props.lab;

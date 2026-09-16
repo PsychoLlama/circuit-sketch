@@ -1,7 +1,7 @@
 import { For } from "solid-js";
 import type { Lab } from "~/state/circuit/actions";
 import { componentCatalog } from "~/state/circuit/formulas";
-import Symbol from "./Symbol";
+import Symbol from "./symbol";
 
 const Library = (props: { lab: Lab }) => {
   const lab = props.lab;

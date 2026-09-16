@@ -8,7 +8,7 @@ import {
   wires,
   isJunction,
 } from "~/state/circuit/formulas";
-import Symbol from "./Symbol";
+import Symbol from "./symbol";
 
 const Editor = (props: { lab: Lab }) => {
   const lab = props.lab;
@@ -40,7 +40,7 @@ const Editor = (props: { lab: Lab }) => {
           <span class="separator" />
           <button
             class={lab.labels() ? "toggled" : ""}
-            onClick={() => lab.setLabels(!lab.labels())}
+            onClick={lab.toggleLabels}
           >
             Readings
           </button>
@@ -63,7 +63,7 @@ const Editor = (props: { lab: Lab }) => {
           class="circuit-canvas"
           aria-label="Circuit canvas"
           onClick={lab.canvas}
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={lab.allowDrop}
           onDrop={lab.drop}
           onPointerMove={lab.move}
           onPointerUp={lab.endDrag}
@@ -134,11 +134,9 @@ const Editor = (props: { lab: Lab }) => {
                   transform={`translate(${p.x} ${p.y})`}
                   class={`circuit-part ${lab.selected() === p.id ? "selected" : ""} ${lab.errors(p).length ? "has-error" : ""}`}
                   onPointerDown={(e) => lab.startDrag(e, p)}
-                  onPointerEnter={(e) =>
-                    lab.setHover({ id: p.id, x: e.clientX, y: e.clientY })
-                  }
+                  onPointerEnter={(e) => lab.previewPart(e, p.id)}
 
-                  onPointerLeave={() => lab.setHover(undefined)}
+                  onPointerLeave={lab.clearHover}
                 >
                   <rect
                     class="part-bg"
@@ -194,10 +192,7 @@ const Editor = (props: { lab: Lab }) => {
                         data-pin={p[side]}
                         class={`pin ${lab.pending() === p[side] ? "pending" : ""}`}
                         onPointerDown={(e) => lab.startPin(e, p[side])}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          lab.setSuppressClick(false);
-                        }}
+                        onClick={lab.clickPin}
                       >
                         <circle
                           class="pin-hit"
@@ -266,17 +261,17 @@ const Editor = (props: { lab: Lab }) => {
             <button
               aria-label="Zoom out"
               disabled={lab.zoom() <= 0.5}
-              onClick={() => lab.setZoom((z) => Math.max(0.5, z - 0.1))}
+              onClick={lab.zoomOut}
             >
               −
             </button>
-            <button title="Reset zoom" onClick={() => lab.setZoom(1)}>
+            <button title="Reset zoom" onClick={lab.resetZoom}>
               {Math.round(lab.zoom() * 100)}%
             </button>
             <button
               aria-label="Zoom in"
               disabled={lab.zoom() >= 1.5}
-              onClick={() => lab.setZoom((z) => Math.min(1.5, z + 0.1))}
+              onClick={lab.zoomIn}
             >
               +
             </button>

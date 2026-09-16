@@ -1,7 +1,7 @@
 import { createLab } from "~/state/circuit/actions";
-import Library from "./Library";
-import Editor from "./Editor";
-import Inspector from "./Inspector";
+import Library from "./library";
+import Editor from "./editor";
+import Inspector from "./inspector";
 
 const CircuitLab = () => {
   const lab = createLab();

@@ -15,18 +15,21 @@ describe("DC circuit physics", () => {
 
   it("solves Ohm’s law and delivered power", () => {
     const s = solve([source, r("R", "p", "g", 1000)]);
+
     expect(s.readings.R.current).toBeCloseTo(0.012);
     expect(s.readings.V.power).toBeCloseTo(-0.144);
   });
 
   it("solves a voltage divider", () => {
     const s = solve([source, r("R1", "p", "m", 1000), r("R2", "m", "g", 2000)]);
+
     expect(s.nodes.m).toBeCloseTo(8);
     expect(s.readings.R1.current).toBeCloseTo(0.004);
   });
 
   it("sums parallel currents and conserves energy", () => {
     const s = solve([source, r("R1", "p", "g", 1000), r("R2", "p", "g", 2000)]);
+
     expect(s.readings.V.current).toBeCloseTo(-0.018);
     expect(
       Object.values(s.readings).reduce((n, r) => n + r.power, 0),
@@ -39,6 +42,7 @@ describe("DC circuit physics", () => {
       r("R", "p", "m", 1000),
       { id: "S", kind: "switch", a: "m", b: "g", value: 0, closed: false },
     ];
+
     expect(solve(b).readings.R.current).toBeCloseTo(0);
     expect(
       solve(b.map((x) => ({ ...x, closed: true }))).readings.R.current,
@@ -51,6 +55,7 @@ describe("DC circuit physics", () => {
       r("R", "p", "m", 1000),
       { id: "C", kind: "capacitor", a: "m", b: "g", value: 1e-6 },
     ]);
+
     expect(s.readings.C.voltage).toBeCloseTo(12);
     expect(s.readings.C.current).toBe(0);
   });
@@ -62,6 +67,7 @@ describe("DC circuit physics", () => {
         { id: "W", kind: "wire", a: "p", b: "m", value },
         r("R", "m", "g", 1000),
       ]);
+
       expect(s.readings.W.current).toBeCloseTo(12 / (1000 + value));
       expect(s.readings.W.voltage).toBeCloseTo((value * 12) / (1000 + value));
     }
@@ -72,6 +78,7 @@ describe("DC circuit physics", () => {
       solve([source, { id: "W", kind: "wire", a: "p", b: "g", value: 0 }])
         .error,
     ).toBeTruthy();
+
     expect(solve([source, { ...source, id: "V2" }]).error).toBeTruthy();
   });
 
@@ -85,6 +92,7 @@ describe("DC circuit physics", () => {
 
   it("handles reversed polarity and arbitrary reference", () => {
     const s = solve([{ ...source, value: -5 }, r("R", "p", "g", 1000)], "p");
+
     expect(s.nodes.g).toBeCloseTo(5);
     expect(s.readings.R.current).toBeCloseTo(-0.005);
   });
@@ -98,6 +106,7 @@ describe("DC circuit physics", () => {
       r("d", "y", "g", 100),
       r("e", "x", "y", 100),
     ]);
+
     expect(s.readings.e.current).toBeCloseTo(0);
   });
 
@@ -112,6 +121,7 @@ describe("breadboard components", () => {
 
   it("limits LED current with a series resistor and conserves power", () => {
     const result = solve([source, r("R", "p", "m", 1000), led]);
+
     expect(result.error).toBeUndefined();
     expect(result.readings.L.current).toBeCloseTo(10 / 1010, 7);
     expect(
@@ -126,9 +136,12 @@ describe("breadboard components", () => {
         r("R", "p", "m", 1000),
         { ...led, kind, a: "g", b: "m" },
       ]);
+
       expect(reverse.error).toBeUndefined();
       expect(Math.abs(reverse.readings.L.current)).toBeLessThan(1e-6);
+
       const direct = solve([source, { ...led, kind, a: "p" }]);
+
       expect(direct.readings.L.current).toBeGreaterThan(0.9);
     }
   });
@@ -139,6 +152,7 @@ describe("breadboard components", () => {
       r("R", "p", "m", 1000),
       led,
     ]);
+
     expect(result.readings.L.current).toBeLessThan(1e-8);
   });
 
@@ -167,40 +181,48 @@ describe("solver invariants", () => {
         r("R4", "y", "g", 470),
         r("R5", "x", "y", 680),
       ];
+
       const baseline = solve(branches);
 
       for (const reference of ["p", "x", "y", "g"]) {
         const result = solve(branches, reference);
+
         expect(result.error).toBeUndefined();
         expect(result.nodes[reference]).toBe(0);
 
         for (const node of Object.keys(result.nodes)) {
           const netCurrent = branches.reduce((sum, branch) => {
             const current = result.readings[branch.id].current;
+
             return (
               sum +
               (branch.a === node ? current : 0) -
               (branch.b === node ? current : 0)
             );
           }, 0);
+
           expect(netCurrent).toBeCloseTo(0, 12);
         }
 
         for (const branch of branches) {
           const reading = result.readings[branch.id];
+
           expect(reading.voltage).toBeCloseTo(
             baseline.readings[branch.id].voltage,
             10,
           );
+
           expect(reading.current).toBeCloseTo(
             baseline.readings[branch.id].current,
             12,
           );
+
           if (branch.kind === "resistor") {
             expect(reading.current).toBeCloseTo(
               reading.voltage / branch.value,
               12,
             );
+
             expect(reading.power).toBeGreaterThanOrEqual(0);
           }
         }

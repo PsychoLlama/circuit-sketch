@@ -38,8 +38,8 @@ import {
   setZoom,
 } from "../data";
 import { describe, it, expect, vi } from "vitest";
-import { __resetSignals } from "../../../lib/signals";
-import { solve } from "../../../lib/circuit/solver";
+import { __resetSignals } from "~/lib/signals";
+import { solve } from "~/lib/circuit/solver";
 
 describe("circuit editing", () => {
   it("creates four physically consistent experiments", () => {
@@ -47,9 +47,11 @@ describe("circuit editing", () => {
       example(name);
 
       const result = solve(parts());
+
       expect(result.error).toBeUndefined();
 
       const source = parts().find((p) => p.kind === "source")!;
+
       expect(result.readings[source.id].current).toBeCloseTo(
         name === "series"
           ? -0.009
@@ -66,6 +68,7 @@ describe("circuit editing", () => {
     example("series");
 
     const initial = parts();
+
     clear();
     expect(parts()).toHaveLength(0);
     undo();
@@ -92,6 +95,7 @@ describe("circuit editing", () => {
     example("series");
 
     const r = parts().find((p) => p.kind === "resistor")!;
+
     update(r.id, { value: 2000 });
     expect(solve(parts()).readings[r.id].current).toBeCloseTo(0.0045);
     undo();
@@ -110,7 +114,9 @@ const keyboard = (key: string, options = {}) =>
 describe("editor shortcuts", () => {
   it("redoes with the uppercase Z produced by Ctrl+Shift+Z", () => {
     example("series");
+
     const initial = parts();
+
     key(keyboard("z", { ctrlKey: true }));
     expect(parts()).toHaveLength(0);
     key(keyboard("Z", { ctrlKey: true, shiftKey: true }));
@@ -129,8 +135,10 @@ describe("editor shortcuts", () => {
 
   it("deletes a selected component and its wires with Backspace, with undo", () => {
     example("series");
+
     const initial = parts();
     const source = initial[0];
+
     setSelected(source.id);
     key(keyboard("Backspace"));
     expect(
@@ -138,24 +146,29 @@ describe("editor shortcuts", () => {
         (p) => p.id === source.id || p.a === source.a || p.b === source.b,
       ),
     ).toBe(false);
+
     undo();
     expect(parts()).toEqual(initial);
   });
 
   it("keeps Backspace inside form fields", () => {
     example("series");
+
     const initial = parts();
+
     key(keyboard("Backspace", { target: { closest: () => ({}) } }));
     expect(parts()).toEqual(initial);
   });
 
   it("does not clear selection on the canvas click after a component pointer release", () => {
     example("series");
+
     const part = parts()[0];
     const svg = {
       getBoundingClientRect: () => ({ left: 0, top: 0 }),
       setPointerCapture: vi.fn(),
     };
+
     startDrag(
       {
         button: 0,
@@ -167,6 +180,7 @@ describe("editor shortcuts", () => {
       } as unknown as PointerEvent,
       part,
     );
+
     endDrag();
     canvas({ target: { closest: () => null } } as unknown as MouseEvent);
     expect(selected()).toBe(part.id);
@@ -191,20 +205,24 @@ describe("pointer placement", () => {
       dataTransfer: { getData: () => "capacitor" },
       preventDefault: vi.fn(),
     } as unknown as DragEvent);
+
     expect(parts().at(-1)).toMatchObject({
       kind: "capacitor",
       x: 300,
       y: 200,
     });
+
     undo();
     expect(parts()).toHaveLength(6);
   });
 
   it("restores a cancelled component drag without adding history", () => {
     example("series");
+
     const before = parts();
     const count = history().length;
     const part = before[0];
+
     setDrag({
       id: part.id,
       x: part.x,
@@ -213,6 +231,7 @@ describe("pointer placement", () => {
       py: part.y,
       before,
     });
+
     setParts(before.map((p) => ({ ...p, x: p.x + 100 })));
     cancelDrag();
     expect(parts()).toEqual(before);
@@ -234,8 +253,10 @@ describe("canvas scrolling", () => {
   it("scrolls both axes without changing the circuit or undo history", () => {
     example("series");
     setViewport({ width: 800, height: 600 });
+
     const initial = parts();
     const previousHistory = history();
+
     scroll(wheel(30, 40));
     expect(pan()).toEqual({ x: -30, y: -40 });
     scroll(wheel(0, 20, { shiftKey: true }));
@@ -248,7 +269,9 @@ describe("canvas scrolling", () => {
     example("series");
     setViewport({ width: 800, height: 600 });
     scroll(wheel(10000, 10000));
+
     const limit = pan();
+
     scroll(wheel(-10, -10));
     expect(pan()).toEqual({ x: limit.x + 10, y: limit.y + 10 });
   });
@@ -269,6 +292,7 @@ describe("canvas scrolling", () => {
       dataTransfer: { getData: () => "resistor" },
       preventDefault: vi.fn(),
     } as unknown as DragEvent);
+
     expect(parts().at(-1)).toMatchObject({ x: 280, y: 300 });
   });
 
@@ -287,6 +311,7 @@ describe("canvas scrolling", () => {
 describe("experiment flow", () => {
   it("shows total current on the shared rails and branch current after the split", () => {
     example("parallel");
+
     const [source, upper, lower] = parts();
     const result = solve(parts());
     const wires = parts().filter((p) => p.kind === "wire");
@@ -296,6 +321,7 @@ describe("experiment flow", () => {
         i < 2 ? 0.0135 : 0.0045,
       ),
     );
+
     expect(wires.some((w) => w.a === upper.a && w.b === lower.a)).toBe(true);
     expect(source.x).toBe(upper.x);
     expect(upper.x).toBe(lower.x);
@@ -304,8 +330,11 @@ describe("experiment flow", () => {
 
   it("stops current throughout a series loop when the switch opens", () => {
     example("series");
+
     const sw = parts().find((p) => p.kind === "switch")!;
+
     update(sw.id, { closed: false });
+
     const result = solve(parts());
 
     expect(result.error).toBeUndefined();
@@ -318,9 +347,13 @@ describe("replacement and reconnection", () => {
   it("replaces an edited circuit with an example in one undo step", () => {
     example("series");
     update(parts()[1].id, { value: 3300 });
+
     const before = parts();
+
     example("parallel");
+
     const replacement = parts();
+
     undo();
     expect(parts()).toEqual(before);
     redo();
@@ -329,23 +362,30 @@ describe("replacement and reconnection", () => {
 
   it("joins wires across a removed component and preserves their resistance", () => {
     example("series");
+
     const resistor = parts()[1];
     const attached = parts().filter(
       (p) =>
         p.kind === "wire" &&
         [p.a, p.b].some((node) => node === resistor.a || node === resistor.b),
     );
+
     update(attached[0].id, { value: 20 });
     update(attached[1].id, { value: 30 });
+
     const before = parts();
+
     remove(resistor.id);
     expect(parts()).toHaveLength(4);
     expect(parts().find((p) => p.id === attached[0].id)?.value).toBe(50);
+
     const result = solve(parts());
+
     expect(result.error).toBeUndefined();
     expect(Math.abs(result.readings[parts()[0].id].current)).toBeCloseTo(
       9 / 50,
     );
+
     undo();
     expect(parts()).toEqual(before);
     redo();
@@ -354,7 +394,9 @@ describe("replacement and reconnection", () => {
 
   it("reverses inserting a component into a resistive wire by deleting it", () => {
     example("series");
+
     const wire = parts().find((p) => p.kind === "wire")!;
+
     update(wire.id, { value: 12 });
     insert("resistor", wire.id);
     remove();
@@ -362,6 +404,7 @@ describe("replacement and reconnection", () => {
       ...wire,
       value: 12,
     });
+
     expect(parts()).toHaveLength(6);
   });
 });
@@ -369,17 +412,21 @@ describe("replacement and reconnection", () => {
 describe("saved circuits", () => {
   it("restores edits, avoids duplicate IDs, and persists undo and clear", () => {
     const storage = new Map<string, string>();
+
     vi.stubGlobal("window", {
       localStorage: {
         getItem: (key: string) => storage.get(key) ?? null,
         setItem: (key: string, value: string) => storage.set(key, value),
       },
     });
+
     try {
       __resetSignals();
       example("series");
       update(parts()[1].id, { value: 4700 });
+
       const saved = parts();
+
       __resetSignals();
       restore();
       expect(parts()).toEqual(saved);
@@ -407,6 +454,7 @@ describe("saved circuits", () => {
         },
       },
     });
+
     try {
       restore();
       expect(parts()).toEqual([]);
@@ -420,7 +468,9 @@ describe("saved circuits", () => {
 describe("breadboard editing", () => {
   it("loads a safe LED circuit", () => {
     example("led");
+
     const led = parts().find((p) => p.kind === "led")!;
+
     expect(led).toBeDefined();
     expect(errors(led)).toEqual([]);
     expect(solve(parts()).readings[led.id].current).toBeGreaterThan(0.001);
@@ -428,8 +478,10 @@ describe("breadboard editing", () => {
 
   it("disconnects a wire with undo support", () => {
     example("led");
+
     const before = parts();
     const wire = before.find((p) => p.kind === "wire")!;
+
     remove(wire.id);
     expect(parts()).toHaveLength(before.length - 1);
     undo();
@@ -438,7 +490,9 @@ describe("breadboard editing", () => {
 
   it("resets values when changing a component type", () => {
     example("series");
+
     const part = parts().find((p) => p.kind === "resistor")!;
+
     changeKind(part.id, "led");
     expect(parts().find((p) => p.id === part.id)).toMatchObject({
       kind: "led",
@@ -448,7 +502,9 @@ describe("breadboard editing", () => {
 
   it("retains invalid finite edits for visible validation and recovers after correction", () => {
     example("series");
+
     const resistor = () => parts().find((p) => p.kind === "resistor")!;
+
     setValue(resistor().id, -1);
     expect(errors(resistor()).join(" ")).toContain("greater than zero");
     setValue(resistor().id, 1000);
@@ -464,6 +520,7 @@ describe("editor lifecycle", () => {
     const observe = vi
       .spyOn(effects, "observeCanvas")
       .mockReturnValue(stopResize);
+
     const read = vi.spyOn(effects, "readCircuit").mockReturnValue(null);
     const canvasElement = {} as SVGSVGElement;
     const dispose = createRoot((dispose) => {
@@ -471,6 +528,7 @@ describe("editor lifecycle", () => {
       bindCanvas(canvasElement);
       return dispose;
     });
+
     try {
       await Promise.resolve();
       expect(read).toHaveBeenCalledTimes(1);
@@ -479,6 +537,7 @@ describe("editor lifecycle", () => {
         canvasElement,
         setViewport,
       );
+
       expect(stopKeys).not.toHaveBeenCalled();
       expect(stopResize).not.toHaveBeenCalled();
       dispose();

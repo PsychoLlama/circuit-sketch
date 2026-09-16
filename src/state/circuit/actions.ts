@@ -17,7 +17,7 @@ import {
   parseCircuit,
   removePart,
 } from "./formulas";
-import { type Kind } from "../../lib/circuit/solver";
+import { type Kind } from "~/lib/circuit/solver";
 import {
   drag as activeDrag,
   future,
@@ -62,9 +62,11 @@ export const scroll = (e: WheelEvent) => {
 
   const scale =
     e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? viewport().height : 1;
+
   const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX;
   const dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY;
   const current = pan();
+
   setOffset(
     constrainOffset(
       { x: current.x - dx * scale, y: current.y - dy * scale },
@@ -73,14 +75,17 @@ export const scroll = (e: WheelEvent) => {
       viewport(),
     ),
   );
+
   setHover(undefined);
   if (pending()) setPreview(coords(e));
 };
+
 export const persist = () =>
   writeCircuit(JSON.stringify({ version: 1, parts: parts() }));
 
 export const restore = () => {
   const saved = parseCircuit(readCircuit());
+
   if (!saved) return;
   setParts(saved);
   setSerial(
@@ -132,6 +137,7 @@ export const pin = (node: string) => {
 
   if (pending() !== node) {
     const p = make("wire", 0, 0);
+
     change([...parts(), { ...p, a: pending()!, b: node }]);
   }
 
@@ -163,6 +169,7 @@ export const place = (kind: Kind, e: MouseEvent) => {
     Math.max(60, Math.round(pos.x / 20) * 20),
     Math.max(60, Math.round(pos.y / 20) * 20),
   );
+
   change([...parts(), p]);
   setSelected(p.id);
   choose("select");
@@ -211,6 +218,7 @@ export const startDrag = (e: PointerEvent, p: Part) => {
 
 export const move = (e: PointerEvent) => {
   if (pending()) setPreview(coords(e));
+
   const drag = activeDrag();
 
   if (!drag) return;
@@ -229,6 +237,7 @@ export const move = (e: PointerEvent) => {
         : p,
     ),
   );
+
   setHover(undefined);
 };
 
@@ -251,13 +260,17 @@ export const cancelDrag = () => {
 
 export const endDrag = (e?: PointerEvent) => {
   const start = pinDrag();
+
   if (start && e) {
     const target = pinAt(e.clientX, e.clientY);
+
     if (target && target !== pending()) pin(target);
     else if (!target) choose("select");
+
     setPinDrag(undefined);
     setPreview(undefined);
   }
+
   const drag = activeDrag();
 
   if (
@@ -293,6 +306,7 @@ export const insert = (kind: Kind, id = selected()) => {
 
   const p = make(kind, (a.x + b.x) / 2, (a.y + b.y) / 2);
   const tail = make("wire", 0, 0);
+
   change([
     ...parts().map((v) =>
       v.id === w.id ? { ...v, b: p.a, value: v.value / 2 } : v,
@@ -300,6 +314,7 @@ export const insert = (kind: Kind, id = selected()) => {
     p,
     { ...tail, a: p.b, b: w.b, value: w.value / 2 },
   ]);
+
   setSelected(p.id);
 };
 
@@ -417,7 +432,9 @@ export const libraryDrag = (e: DragEvent, kind: Kind) => {
 
 export const drop = (e: DragEvent) => {
   e.preventDefault();
+
   const kind = e.dataTransfer?.getData("application/x-circuit-part") as Kind;
+
   if (!catalog.some((c) => c.kind === kind && kind !== "wire")) return;
   setSuppressClick(false);
   place(kind, e);
@@ -427,19 +444,23 @@ export const toggleLabels = () => setLabels((labels) => !labels);
 export const allowDrop = (event: DragEvent) => event.preventDefault();
 export const previewPart = (event: PointerEvent, id: string) =>
   setHover({ id, x: event.clientX, y: event.clientY });
+
 export const clearHover = () => setHover(undefined);
 export const clickPin = (event: MouseEvent) => {
   event.stopPropagation();
   setSuppressClick(false);
 };
+
 export const zoomOut = () => setZoom((zoom) => Math.max(0.5, zoom - 0.1));
 export const resetZoom = () => setZoom(1);
 export const zoomIn = () => setZoom((zoom) => Math.min(1.5, zoom + 0.1));
 export const changeKind = (id: string, kind: Kind) =>
   update(id, { kind, value: defaults[kind], closed: true });
+
 export const setValue = (id: string, value: number) => {
   if (Number.isFinite(value)) update(id, { value });
 };
+
 export const clear = () => {
   change([]);
   setOffset({ x: 0, y: 0 });

@@ -16,9 +16,12 @@ export const observeCanvas = (
 ) => {
   const measure = () => {
     const { width, height } = canvas.getBoundingClientRect();
+
     resize({ width, height });
   };
+
   const observer = new ResizeObserver(measure);
+
   observer.observe(canvas);
   measure();
 

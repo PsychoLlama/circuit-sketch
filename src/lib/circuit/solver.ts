@@ -41,6 +41,7 @@ export const isDiode = (b: Branch) => b.kind === "led" || b.kind === "diode";
 
 export const parameterErrors = (b: Branch): string[] => {
   const errors: string[] = [];
+
   if (!Number.isFinite(b.value)) errors.push("Value must be finite.");
   else if (
     ["resistor", "rheostat", "lamp", "capacitor", "led", "diode"].includes(
@@ -51,29 +52,37 @@ export const parameterErrors = (b: Branch): string[] => {
     errors.push("Value must be greater than zero.");
   else if (b.kind === "wire" && b.value < 0)
     errors.push("Wire resistance cannot be negative.");
+
   if (!b.a || !b.b) errors.push("Both terminals need a node.");
   if (b.a === b.b)
     errors.push("Both terminals are connected to the same node.");
+
   return errors;
 };
 
 export const solve = (branches: Branch[], reference?: string): Solution => {
   let conducting = new Set<string>();
+
   for (let iteration = 0; iteration < 100; iteration++) {
     const result = solveLinear(branches, reference, conducting);
+
     if (result.error) return result;
+
     const next = new Set(
       branches
         .filter((b) => isDiode(b) && result.readings[b.id].voltage > b.value)
         .map((b) => b.id),
     );
+
     if (
       next.size === conducting.size &&
       [...next].every((id) => conducting.has(id))
     )
       return result;
+
     conducting = next;
   }
+
   return {
     readings: {},
     nodes: {},
@@ -105,6 +114,7 @@ const solveLinear = (
 
   const conductance = (b: Branch) =>
     isDiode(b) ? (conducting.has(b.id) ? 0.1 : 1e-9) : 1 / b.value;
+
   const bias = (b: Branch) =>
     isDiode(b) && conducting.has(b.id) ? b.value * (0.1 - 1e-9) : 0;
 
@@ -169,6 +179,7 @@ const solveLinear = (
       matrix[n + k][size] = b.kind === "source" ? b.value : 0;
     } else {
       const g = conductance(b);
+
       if (a >= 0) matrix[a][size] += bias(b);
       if (z >= 0) matrix[z][size] -= bias(b);
 
@@ -202,6 +213,7 @@ const solveLinear = (
       return fail(
         "Conflicting ideal sources or an ideal-wire loop. Add resistance or remove a redundant path; a unique current cannot be determined.",
       );
+
     [matrix[c], matrix[pivot]] = [matrix[pivot], matrix[c]];
 
     const div = matrix[c][c];
@@ -217,6 +229,7 @@ const solveLinear = (
   }
 
   const volts: Record<string, number> = { [ground]: 0 };
+
   unknowns.forEach((node, i) => (volts[node] = matrix[i][size]));
 
   const readings: Record<string, Reading> = {};
@@ -233,6 +246,7 @@ const solveLinear = (
 
     if (![voltage, current].every(Number.isFinite))
       return fail("Numerical range exceeded.");
+
     readings[b.id] = {
       a: volts[b.a],
       b: volts[b.b],

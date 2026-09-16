@@ -15,8 +15,10 @@ export const createResettableSignal = <T>(
   options?: SignalOptions<T>,
 ): Signal<T> => {
   const signal = createSignal(initial(), options);
+
   if (import.meta.env.VITEST) {
     __resets.add(() => signal[1](() => initial()));
   }
+
   return signal;
 };

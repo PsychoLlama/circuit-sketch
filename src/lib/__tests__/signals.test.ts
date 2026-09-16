@@ -8,6 +8,7 @@ describe("resettable signals", () => {
     const [selection, setSelection] = createResettableSignal<
       string | undefined
     >(() => undefined);
+
     setCount((value) => value + 5);
     setSelection("R1");
     expect(count()).toBe(7);
@@ -22,11 +23,14 @@ describe("resettable signals", () => {
   it("recreates nested mutable defaults on every reset", () => {
     const [value] = createResettableSignal(() => ({ items: [{ value: 1 }] }));
     const first = value();
+
     first.items[0].value = 9;
     __resetSignals();
     expect(value()).toEqual({ items: [{ value: 1 }] });
     expect(value()).not.toBe(first);
+
     const second = value();
+
     second.items.push({ value: 2 });
     __resetSignals();
     expect(value()).toEqual({ items: [{ value: 1 }] });
@@ -38,6 +42,7 @@ describe("resettable signals", () => {
     const [callback, setCallback] = createResettableSignal<() => number>(
       () => original,
     );
+
     setCallback(() => () => 99);
     __resetSignals();
     expect(callback()).toBe(original);
@@ -52,6 +57,7 @@ describe("resettable signals", () => {
       createComputed(() => observed.push([left(), right()]));
       return dispose;
     });
+
     try {
       setLeft(10);
       setRight(20);
@@ -72,11 +78,13 @@ describe("resettable signals", () => {
     const [value, setValue] = createResettableSignal(() => 1, {
       equals: false,
     });
+
     const observe = vi.fn();
     const dispose = createRoot((dispose) => {
       createComputed(() => observe(value()));
       return dispose;
     });
+
     try {
       setValue(1);
       __resetSignals();

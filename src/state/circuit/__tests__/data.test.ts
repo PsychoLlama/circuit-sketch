@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { __resetSignals } from "../../../lib/signals";
+import { __resetSignals } from "~/lib/signals";
 import * as data from "../data";
 import { example, update } from "../actions";
 import { hovered, inspectedPart, selectedPart, solution } from "../formulas";
@@ -7,7 +7,9 @@ import { hovered, inspectedPart, selectedPart, solution } from "../formulas";
 describe("shared editor state", () => {
   it("resets circuit, interaction, history, viewport and identifier state", () => {
     example("series");
+
     const initial = data.parts();
+
     data.setHover({ id: initial[0].id, x: 10, y: 20 });
     data.setPending(initial[0].a);
     data.setTool("wire");
@@ -57,8 +59,10 @@ describe("shared editor state", () => {
 
   it("updates the cached solver across edits and resets without rebuilding queries", () => {
     example("series");
+
     const resistor = data.parts()[1];
     const initial = solution();
+
     expect(initial.readings[resistor.id].current).toBeCloseTo(0.009);
     data.setZoom(0.5);
     data.setSelected(undefined);

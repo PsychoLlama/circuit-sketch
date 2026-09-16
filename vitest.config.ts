@@ -3,9 +3,14 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   define: { "import.meta.env.VITEST": "true" },
+
   // Node otherwise loads Solid's nonreactive server implementation.
   resolve: {
     alias: [
+      {
+        find: "~",
+        replacement: fileURLToPath(new URL("./src", import.meta.url)),
+      },
       {
         find: /^solid-js$/,
         replacement: fileURLToPath(

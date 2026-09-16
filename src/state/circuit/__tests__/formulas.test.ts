@@ -8,7 +8,7 @@ import {
   constrainOffset,
 } from "../formulas";
 
-import { solve, type Kind } from "../../../lib/circuit/solver";
+import { solve, type Kind } from "~/lib/circuit/solver";
 import type { Part } from "../data";
 
 const bounds = { left: 100, right: 500, top: 80, bottom: 280 };
@@ -19,6 +19,7 @@ describe("canvas scroll limits", () => {
     expect(
       constrainOffset({ x: -10000, y: -10000 }, bounds, 1, viewport),
     ).toEqual({ x: -260, y: -100 });
+
     expect(
       constrainOffset({ x: 10000, y: 10000 }, bounds, 1, viewport),
     ).toEqual({ x: 460, y: 340 });
@@ -28,6 +29,7 @@ describe("canvas scroll limits", () => {
     expect(
       constrainOffset({ x: -10000, y: -10000 }, bounds, 0.5, viewport),
     ).toEqual({ x: -50, y: -40 });
+
     expect(
       constrainOffset({ x: 460, y: 340 }, bounds, 1, {
         width: 400,
@@ -38,9 +40,11 @@ describe("canvas scroll limits", () => {
 
   it("keeps oversized circuits scrollable using viewport overlap", () => {
     const large = { left: 0, right: 10000, top: 0, bottom: 10000 };
+
     expect(constrainOffset({ x: 10000, y: 10000 }, large, 1, viewport)).toEqual(
       { x: 560, y: 420 },
     );
+
     expect(
       constrainOffset({ x: -10000, y: -10000 }, large, 1, viewport),
     ).toEqual({ x: -9760, y: -9820 });
@@ -48,9 +52,11 @@ describe("canvas scroll limits", () => {
 
   it("keeps small circuits fully visible on each axis", () => {
     const small = { left: 100, right: 180, top: 100, bottom: 140 };
+
     expect(
       constrainOffset({ x: -10000, y: -10000 }, small, 1, viewport),
     ).toEqual({ x: -100, y: -100 });
+
     expect(constrainOffset({ x: 10000, y: 10000 }, small, 1, viewport)).toEqual(
       { x: 620, y: 460 },
     );
@@ -91,30 +97,37 @@ describe("component validation", () => {
     y: 100,
     closed: true,
   });
+
   const source: Part = { ...part("source", 9), id: "V" };
 
   it("flags LED overcurrent and excess power, and clears after adding resistance", () => {
     const led = part("led");
     const direct = [source, led];
     const errors = componentErrors(led, direct, solve(direct));
+
     expect(errors.some((e) => e.startsWith("Power"))).toBe(true);
     expect(errors.some((e) => e.startsWith("Current"))).toBe(true);
+
     const safeLed = { ...led, a: "m" };
     const safe = [
       source,
       { ...part("resistor", 1000), id: "R", b: "m" },
       safeLed,
     ];
+
     expect(componentErrors(safeLed, safe, solve(safe))).toEqual([]);
   });
 
   it("reports LED reverse voltage without treating small reverse bias as damage", () => {
     const led = { ...part("led"), a: "g", b: "p" };
     const parts = [source, led];
+
     expect(componentErrors(led, parts, solve(parts)).join(" ")).toContain(
       "Reverse voltage",
     );
+
     const safe = [{ ...source, value: 3 }, led];
+
     expect(componentErrors(led, safe, solve(safe))).toEqual([]);
   });
 
@@ -122,6 +135,7 @@ describe("component validation", () => {
     for (const { kind } of componentCatalog) {
       const p = part(kind, NaN);
       const errors = componentErrors(p, [p], solve([p]));
+
       expect(errors).toContain("Value must be finite.");
       expect(errors.join(" ")).toContain("Terminal A is disconnected");
       expect(errors.join(" ")).toContain("Terminal B is disconnected");
@@ -139,6 +153,7 @@ describe("component validation", () => {
       ["source", 9, -1],
     ] as const) {
       const p = part(kind);
+
       expect(
         componentErrors(p, [p, { ...source, id: "other" }], {
           nodes: {},
@@ -153,6 +168,7 @@ describe("component validation", () => {
   it("explains unsolved states for connected components", () => {
     const p = part("switch");
     const parts = [source, p];
+
     expect(componentErrors(p, parts, solve(parts)).join(" ")).toContain(
       "Electrical state unavailable",
     );
@@ -163,6 +179,7 @@ describe("component validation", () => {
       ...part(kind),
       id: String(i),
     }));
+
     expect(componentCatalog.some((c) => c.kind === "wire")).toBe(false);
     expect(parseCircuit(JSON.stringify({ version: 1, parts }))).toEqual(parts);
   });

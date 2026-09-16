@@ -6,7 +6,7 @@ import {
   type Kind,
   type Solution,
   type Reading,
-} from "../../lib/circuit/solver";
+} from "~/lib/circuit/solver";
 import {
   parts,
   offset,
@@ -178,8 +178,10 @@ export const point = (node: string): { x: number; y: number } => {
 export const route = (p: Part) => {
   const a = point(p.a),
     b = point(p.b);
+
   const side = (node: string) =>
     parts().some((part) => part.kind !== "wire" && part.a === node) ? -1 : 1;
+
   const sa = side(p.a),
     sb = side(p.b);
 
@@ -190,6 +192,7 @@ export const route = (p: Part) => {
         : sa < 0
           ? Math.min(a.x, b.x) - 24
           : Math.max(a.x, b.x) + 24;
+
     return [a, { x, y: a.y }, { x, y: b.y }, b];
   }
 
@@ -197,7 +200,9 @@ export const route = (p: Part) => {
 
   const ax = a.x + sa * 24,
     bx = b.x + sb * 24;
+
   const mid = (a.y + b.y) / 2;
+
   return [
     a,
     { x: ax, y: a.y },
@@ -207,25 +212,30 @@ export const route = (p: Part) => {
     b,
   ];
 };
+
 export const path = (p: Part) =>
   route(p)
     .map((v, i) => `${i ? "L" : "M"} ${v.x} ${v.y}`)
     .join(" ");
+
 export const wireLabel = (p: Part) => {
   const labelSide = [p.a, p.b].every((node) =>
     parts().some((part) => part.kind !== "wire" && part.a === node),
   )
     ? -1
     : 1;
+
   const points = route(p);
   const lengths = points
     .slice(1)
     .map((v, i) => Math.hypot(v.x - points[i].x, v.y - points[i].y));
+
   let remaining = lengths.reduce((a, b) => a + b, 0) / 2;
 
   for (let i = 0; i < lengths.length; i++) {
     if (lengths[i] > 0 && remaining <= lengths[i]) {
       const ratio = remaining / lengths[i];
+
       return {
         labelSide,
         x: points[i].x + (points[i + 1].x - points[i].x) * ratio,
@@ -239,10 +249,13 @@ export const wireLabel = (p: Part) => {
           Math.PI,
       };
     }
+
     remaining -= lengths[i];
   }
+
   return { ...points[0], angle: 0, labelSide };
 };
+
 export const flow = (p: Part) =>
   currentFlow(
     solution().readings[p.id]?.current,
@@ -256,14 +269,17 @@ export const flow = (p: Part) =>
 
 export const inspectedPart = () => {
   const part = selectedPart() ?? hovered();
+
   return part?.kind === "wire" ? undefined : part;
 };
+
 export const errors = (part: Part) =>
   componentErrors(part, parts(), solution());
 
 export const currentFlow = (current: number | undefined, maximum: number) => {
   if (current === undefined || !Number.isFinite(current))
     return { status: "unknown", duration: 0, reverse: false };
+
   if (Math.abs(current) < 1e-12)
     return { status: "idle", duration: 0, reverse: false };
 
@@ -320,12 +336,17 @@ export const parseCircuit = (raw: string | null): Part[] | undefined => {
 
   try {
     const saved = JSON.parse(raw);
+
     if (saved.version !== 1 || !Array.isArray(saved.parts)) return;
+
     const parts: unknown[] = saved.parts;
+
     if (
       !parts.every((value): value is Part => {
         if (!value || typeof value !== "object") return false;
+
         const p = value as Part;
+
         return (
           typeof p.id === "string" &&
           p.id.length > 0 &&
@@ -341,6 +362,7 @@ export const parseCircuit = (raw: string | null): Part[] | undefined => {
       })
     )
       return;
+
     if (new Set(parts.map((p) => p.id)).size !== parts.length) return;
     return parts;
   } catch {
@@ -353,6 +375,7 @@ export const removePart = (parts: Part[], part: Part) => {
 
   const attached = (node: string) =>
     parts.filter((p) => p.kind === "wire" && (p.a === node || p.b === node));
+
   const left = attached(part.a);
   const right = attached(part.b);
   const remaining = parts.filter(
@@ -362,6 +385,7 @@ export const removePart = (parts: Part[], part: Part) => {
   if (left.length === 1 && right.length === 1 && left[0] !== right[0]) {
     const a = left[0].a === part.a ? left[0].b : left[0].a;
     const b = right[0].a === part.b ? right[0].b : right[0].a;
+
     if (a !== b)
       remaining.push({
         ...left[0],
@@ -417,6 +441,7 @@ export const componentErrors = (
   solution: Solution,
 ) => {
   const errors = parameterErrors(part);
+
   for (const [side, node] of [
     ["A", part.a],
     ["B", part.b],
@@ -426,19 +451,25 @@ export const componentErrors = (
         `Terminal ${side} is disconnected. Connect it to the circuit.`,
       );
   }
+
   const reading = solution.readings[part.id];
+
   if (reading) {
     const limit = ratings[part.kind];
+
     if (Math.abs(reading.power) > limit.power * (1 + 1e-9))
       errors.push(
         `Power ${format(Math.abs(reading.power), "W")} exceeds the ${format(limit.power, "W")} rating.${part.kind === "led" ? " Add or increase the series resistor." : ""}`,
       );
+
     if (Math.abs(reading.current) > limit.current * (1 + 1e-9))
       errors.push(
         `Current ${format(Math.abs(reading.current), "A")} exceeds the ${format(limit.current, "A")} rating.`,
       );
+
     if (Math.abs(reading.voltage) > limit.voltage * (1 + 1e-9))
       errors.push(`Voltage exceeds the ${format(limit.voltage, "V")} rating.`);
+
     if (-reading.voltage > limit.reverse)
       errors.push(
         `Reverse voltage exceeds ${format(limit.reverse, "V")}. Check polarity: A is the anode, B is the cathode.`,
@@ -446,11 +477,13 @@ export const componentErrors = (
   } else if (solution.error && !errors.length) {
     errors.push(`Electrical state unavailable: ${solution.error}`);
   }
+
   return errors;
 };
 
 export const ratingDescription = (part: Part) => {
   const limit = ratings[part.kind];
+
   return [
     Number.isFinite(limit.power)
       ? `${format(limit.power, "W")} maximum power`

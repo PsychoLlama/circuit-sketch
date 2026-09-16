@@ -4,6 +4,7 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  define: { "import.meta.env.VITEST": "false" },
   plugins: [
     tailwindcss(),
     solidStart({

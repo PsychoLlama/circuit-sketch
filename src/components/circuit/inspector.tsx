@@ -1,6 +1,8 @@
-import { For, Show } from "solid-js";
-import type { Lab } from "~/state/circuit/actions";
 import {
+  errors,
+  hovered,
+  inspectedPart,
+  solution,
   componentCatalog,
   componentName,
   components,
@@ -12,46 +14,47 @@ import {
   connections,
   valueLabel,
 } from "~/state/circuit/formulas";
+import { changeKind, remove, setValue, update } from "~/state/circuit/actions";
+import { parts, selected } from "~/state/circuit/data";
+import { For, Show } from "solid-js";
 import type { Kind } from "~/lib/circuit/solver";
 import Symbol from "./symbol";
 import Measurements from "./measurements";
 
-const Inspector = (props: { lab: Lab }) => {
-  const lab = props.lab;
-
+const Inspector = () => {
   return (
     <aside class="inspector">
       <div class="panel-heading">
         INSPECTOR{" "}
         <span>
-          {lab.selected() ? "Selected" : lab.hovered() ? "Preview" : "Circuit"}
+          {selected() ? "Selected" : hovered() ? "Preview" : "Circuit"}
         </span>
       </div>
       <Show
-        when={lab.inspectedPart()}
+        when={inspectedPart()}
         fallback={
           <div class="panel-section">
             <span class="eyebrow">CIRCUIT</span>
             <dl class="measurements">
               <div>
                 <dt>Components</dt>
-                <dd>{components(lab.parts()).length}</dd>
+                <dd>{components(parts()).length}</dd>
               </div>
               <div>
                 <dt>Wires</dt>
-                <dd>{wires(lab.parts()).length}</dd>
+                <dd>{wires(parts()).length}</dd>
               </div>
               <div>
                 <dt>Solved nodes</dt>
-                <dd>{nodeCount(lab.solution())}</dd>
+                <dd>{nodeCount(solution())}</dd>
               </div>
               <div>
                 <dt>Power supplied</dt>
-                <dd>{format(circuitPower(lab.solution(), true), "W")}</dd>
+                <dd>{format(circuitPower(solution(), true), "W")}</dd>
               </div>
               <div>
                 <dt>Power absorbed</dt>
-                <dd>{format(circuitPower(lab.solution(), false), "W")}</dd>
+                <dd>{format(circuitPower(solution(), false), "W")}</dd>
               </div>
             </dl>
           </div>
@@ -77,7 +80,7 @@ const Inspector = (props: { lab: Lab }) => {
                     aria-label="Component type"
                     value={p().kind}
                     onChange={(e) =>
-                      lab.changeKind(p().id, e.currentTarget.value as Kind)
+                      changeKind(p().id, e.currentTarget.value as Kind)
                     }
                   >
                     <For each={componentCatalog}>
@@ -96,7 +99,7 @@ const Inspector = (props: { lab: Lab }) => {
 
                     value={p().value}
                     onInput={(e) =>
-                      lab.setValue(p().id, e.currentTarget.valueAsNumber)
+                      setValue(p().id, e.currentTarget.valueAsNumber)
                     }
                   />
                 </label>
@@ -111,7 +114,7 @@ const Inspector = (props: { lab: Lab }) => {
                     aria-label="Switch position"
                     value={p().closed ? "closed" : "open"}
                     onChange={(e) =>
-                      lab.update(p().id, {
+                      update(p().id, {
                         closed: e.currentTarget.value === "closed",
                       })
                     }
@@ -125,13 +128,11 @@ const Inspector = (props: { lab: Lab }) => {
             <div class="panel-section">
               <span class="eyebrow">VALIDATION</span>
               <Show
-                when={lab.errors(p()).length}
+                when={errors(p()).length}
                 fallback={<p class="validation-ok">No errors detected.</p>}
               >
                 <ul class="validation-errors" role="status">
-                  <For each={lab.errors(p())}>
-                    {(error) => <li>{error}</li>}
-                  </For>
+                  <For each={errors(p())}>{(error) => <li>{error}</li>}</For>
                 </ul>
               </Show>
               <p class="rating-note">
@@ -160,7 +161,7 @@ const Inspector = (props: { lab: Lab }) => {
             </div>
             <div class="panel-section">
               <span class="eyebrow">ELECTRICAL STATE</span>
-              <Measurements lab={lab} part={p()} />
+              <Measurements part={p()} />
             </div>
             <div class="panel-section">
               <span class="eyebrow">INTERNAL STATE</span>
@@ -190,7 +191,7 @@ const Inspector = (props: { lab: Lab }) => {
             <div class="panel-section">
               <span class="eyebrow">CONNECTIONS</span>
               <For
-                each={connections(lab.parts(), p())}
+                each={connections(parts(), p())}
                 fallback={
                   <p>No connections yet. Drag between pins to connect.</p>
                 }
@@ -198,7 +199,7 @@ const Inspector = (props: { lab: Lab }) => {
                 {(wire) => (
                   <button
                     class="wide"
-                    onClick={() => lab.remove(wire.id)}
+                    onClick={() => remove(wire.id)}
                     aria-label={`Disconnect ${wire.a} from ${wire.b}`}
                   >
                     Disconnect {wire.a} ↔ {wire.b}
@@ -207,7 +208,7 @@ const Inspector = (props: { lab: Lab }) => {
               </For>
             </div>
             <div class="panel-section">
-              <button class="danger wide" onClick={() => lab.remove(p().id)}>
+              <button class="danger wide" onClick={() => remove(p().id)}>
                 Remove {p().kind === "wire" ? "wire" : "component"}{" "}
                 <span>⌫</span>
               </button>
@@ -215,9 +216,9 @@ const Inspector = (props: { lab: Lab }) => {
           </>
         )}
       </Show>
-      <Show when={lab.solution().error}>
+      <Show when={solution().error}>
         <div class="notice" role="status">
-          {lab.solution().error}
+          {solution().error}
         </div>
       </Show>
       <div class="model-note">

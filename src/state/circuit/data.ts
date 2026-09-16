@@ -1,64 +1,54 @@
-import { createSignal } from "solid-js";
+import { createResettableSignal } from "../../lib/signals";
 import type { Branch, Kind } from "~/lib/circuit/solver";
 
 export type Part = Branch & { x: number; y: number; terminalOffset?: number };
 
 export type Hover = { id: string; x: number; y: number };
 
-export const createData = () => {
-  const [parts, setParts] = createSignal<Part[]>([]);
-  const [selected, setSelected] = createSignal<string>();
-  const [pending, setPending] = createSignal<string>();
-  const [tool, setTool] = createSignal<Kind | "select">("select");
-  const [hover, setHover] = createSignal<Hover>();
-  const [suppressClick, setSuppressClick] = createSignal(false);
-  const [pinDrag, setPinDrag] = createSignal<string>();
-  const [preview, setPreview] = createSignal<{ x: number; y: number }>();
-  const [labels, setLabels] = createSignal(true);
-  const [offset, setOffset] = createSignal({ x: 0, y: 0 });
-  const [viewport, setViewport] = createSignal({ width: 0, height: 0 });
-  const [zoom, setZoom] = createSignal(1);
-  const [history, setHistory] = createSignal<Part[][]>([]);
-  const [future, setFuture] = createSignal<Part[][]>([]);
-  const [drag, setDrag] = createSignal<{
-    id: string;
-    x: number;
-    y: number;
-    px: number;
-    py: number;
-    before: Part[];
-  }>();
+export const [parts, setParts] = createResettableSignal<Part[]>(() => []);
+export const [selected, setSelected] = createResettableSignal<
+  string | undefined
+>(() => undefined);
+export const [pending, setPending] = createResettableSignal<string | undefined>(
+  () => undefined,
+);
+export const [tool, setTool] = createResettableSignal<Kind | "select">(
+  () => "select",
+);
+export const [hover, setHover] = createResettableSignal<Hover | undefined>(
+  () => undefined,
+);
+export const [suppressClick, setSuppressClick] = createResettableSignal(
+  () => false,
+);
+export const [pinDrag, setPinDrag] = createResettableSignal<string | undefined>(
+  () => undefined,
+);
+export const [preview, setPreview] = createResettableSignal<
+  { x: number; y: number } | undefined
+>(() => undefined);
+export const [labels, setLabels] = createResettableSignal(() => true);
+export const [offset, setOffset] = createResettableSignal(() => ({
+  x: 0,
+  y: 0,
+}));
+export const [viewport, setViewport] = createResettableSignal(() => ({
+  width: 0,
+  height: 0,
+}));
+export const [zoom, setZoom] = createResettableSignal(() => 1);
+export const [history, setHistory] = createResettableSignal<Part[][]>(() => []);
+export const [future, setFuture] = createResettableSignal<Part[][]>(() => []);
+export const [drag, setDrag] = createResettableSignal<
+  | {
+      id: string;
+      x: number;
+      y: number;
+      px: number;
+      py: number;
+      before: Part[];
+    }
+  | undefined
+>(() => undefined);
 
-  return {
-    suppressClick,
-    setSuppressClick,
-    pinDrag,
-    setPinDrag,
-    preview,
-    setPreview,
-    parts,
-    setParts,
-    selected,
-    setSelected,
-    pending,
-    setPending,
-    tool,
-    setTool,
-    hover,
-    setHover,
-    labels,
-    setLabels,
-    offset,
-    setOffset,
-    viewport,
-    setViewport,
-    zoom,
-    setZoom,
-    history,
-    setHistory,
-    future,
-    setFuture,
-    drag,
-    setDrag,
-  };
-};
+export const [serial, setSerial] = createResettableSignal(() => 0);

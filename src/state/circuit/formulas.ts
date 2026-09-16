@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js";
+import { createMemo, createRoot } from "solid-js";
 import {
   solve,
   parameterErrors,
@@ -7,7 +7,15 @@ import {
   type Solution,
   type Reading,
 } from "../../lib/circuit/solver";
-import type { Part, createData } from "./data";
+import {
+  parts,
+  offset,
+  zoom,
+  viewport,
+  selected,
+  hover,
+  type Part,
+} from "./data";
 
 export const catalog: {
   kind: Kind;
@@ -148,130 +156,110 @@ export const powerBalance = (solution: Solution) =>
     "W",
   );
 
-export const createFormulas = (d: ReturnType<typeof createData>) => {
-  const pan = () =>
-    constrainOffset(
-      d.offset(),
-      circuitBounds(d.parts()),
-      d.zoom(),
-      d.viewport(),
-    );
+export const pan = () =>
+  constrainOffset(offset(), circuitBounds(parts()), zoom(), viewport());
 
-  const parts = d.parts;
-  const solution = createMemo(() => solve(parts()));
-  const selectedPart = createMemo(() =>
-    parts().find((p) => p.id === d.selected()),
-  );
-  const hovered = createMemo(() => parts().find((p) => p.id === d.hover()?.id));
-  const point = (node: string): { x: number; y: number } => {
-    for (const p of parts())
-      if (p.kind !== "wire") {
-        if (p.a === node) return { x: p.x - (p.terminalOffset ?? 48), y: p.y };
+// This memo shares the browser editor's module lifetime. Server renders only
+// read the initial empty state; restoration and editing happen on the client.
+export const solution = createRoot(() => createMemo(() => solve(parts())));
+export const selectedPart = () => parts().find((p) => p.id === selected());
+export const hovered = () => parts().find((p) => p.id === hover()?.id);
+export const point = (node: string): { x: number; y: number } => {
+  for (const p of parts())
+    if (p.kind !== "wire") {
+      if (p.a === node) return { x: p.x - (p.terminalOffset ?? 48), y: p.y };
 
-        if (p.b === node) return { x: p.x + (p.terminalOffset ?? 48), y: p.y };
-      }
-
-    return { x: 0, y: 0 };
-  };
-
-  const route = (p: Part) => {
-    const a = point(p.a),
-      b = point(p.b);
-    const side = (node: string) =>
-      parts().some((part) => part.kind !== "wire" && part.a === node) ? -1 : 1;
-    const sa = side(p.a),
-      sb = side(p.b);
-
-    if (sa === sb) {
-      const x =
-        a.x === b.x
-          ? a.x
-          : sa < 0
-            ? Math.min(a.x, b.x) - 24
-            : Math.max(a.x, b.x) + 24;
-      return [a, { x, y: a.y }, { x, y: b.y }, b];
+      if (p.b === node) return { x: p.x + (p.terminalOffset ?? 48), y: p.y };
     }
 
-    if (a.y === b.y && (b.x - a.x) * sa > 0) return [a, b];
-
-    const ax = a.x + sa * 24,
-      bx = b.x + sb * 24;
-    const mid = (a.y + b.y) / 2;
-    return [
-      a,
-      { x: ax, y: a.y },
-      { x: ax, y: mid },
-      { x: bx, y: mid },
-      { x: bx, y: b.y },
-      b,
-    ];
-  };
-  const path = (p: Part) =>
-    route(p)
-      .map((v, i) => `${i ? "L" : "M"} ${v.x} ${v.y}`)
-      .join(" ");
-  const wireLabel = (p: Part) => {
-    const labelSide = [p.a, p.b].every((node) =>
-      parts().some((part) => part.kind !== "wire" && part.a === node),
-    )
-      ? -1
-      : 1;
-    const points = route(p);
-    const lengths = points
-      .slice(1)
-      .map((v, i) => Math.hypot(v.x - points[i].x, v.y - points[i].y));
-    let remaining = lengths.reduce((a, b) => a + b, 0) / 2;
-
-    for (let i = 0; i < lengths.length; i++) {
-      if (lengths[i] > 0 && remaining <= lengths[i]) {
-        const ratio = remaining / lengths[i];
-        return {
-          labelSide,
-          x: points[i].x + (points[i + 1].x - points[i].x) * ratio,
-          y: points[i].y + (points[i + 1].y - points[i].y) * ratio,
-          angle:
-            (Math.atan2(
-              points[i + 1].y - points[i].y,
-              points[i + 1].x - points[i].x,
-            ) *
-              180) /
-            Math.PI,
-        };
-      }
-      remaining -= lengths[i];
-    }
-    return { ...points[0], angle: 0, labelSide };
-  };
-  const flow = (p: Part) =>
-    currentFlow(
-      solution().readings[p.id]?.current,
-      Math.max(
-        0,
-        ...wires(parts()).map((w) =>
-          Math.abs(solution().readings[w.id]?.current ?? 0),
-        ),
-      ),
-    );
-
-  const inspectedPart = () => {
-    const part = selectedPart() ?? hovered();
-    return part?.kind === "wire" ? undefined : part;
-  };
-  const errors = (part: Part) => componentErrors(part, parts(), solution());
-
-  return {
-    pan,
-    inspectedPart,
-    errors,
-    solution,
-    selectedPart,
-    hovered,
-    point,
-    path,
-    wireLabel,
-    flow,
-  };
+  return { x: 0, y: 0 };
 };
+
+export const route = (p: Part) => {
+  const a = point(p.a),
+    b = point(p.b);
+  const side = (node: string) =>
+    parts().some((part) => part.kind !== "wire" && part.a === node) ? -1 : 1;
+  const sa = side(p.a),
+    sb = side(p.b);
+
+  if (sa === sb) {
+    const x =
+      a.x === b.x
+        ? a.x
+        : sa < 0
+          ? Math.min(a.x, b.x) - 24
+          : Math.max(a.x, b.x) + 24;
+    return [a, { x, y: a.y }, { x, y: b.y }, b];
+  }
+
+  if (a.y === b.y && (b.x - a.x) * sa > 0) return [a, b];
+
+  const ax = a.x + sa * 24,
+    bx = b.x + sb * 24;
+  const mid = (a.y + b.y) / 2;
+  return [
+    a,
+    { x: ax, y: a.y },
+    { x: ax, y: mid },
+    { x: bx, y: mid },
+    { x: bx, y: b.y },
+    b,
+  ];
+};
+export const path = (p: Part) =>
+  route(p)
+    .map((v, i) => `${i ? "L" : "M"} ${v.x} ${v.y}`)
+    .join(" ");
+export const wireLabel = (p: Part) => {
+  const labelSide = [p.a, p.b].every((node) =>
+    parts().some((part) => part.kind !== "wire" && part.a === node),
+  )
+    ? -1
+    : 1;
+  const points = route(p);
+  const lengths = points
+    .slice(1)
+    .map((v, i) => Math.hypot(v.x - points[i].x, v.y - points[i].y));
+  let remaining = lengths.reduce((a, b) => a + b, 0) / 2;
+
+  for (let i = 0; i < lengths.length; i++) {
+    if (lengths[i] > 0 && remaining <= lengths[i]) {
+      const ratio = remaining / lengths[i];
+      return {
+        labelSide,
+        x: points[i].x + (points[i + 1].x - points[i].x) * ratio,
+        y: points[i].y + (points[i + 1].y - points[i].y) * ratio,
+        angle:
+          (Math.atan2(
+            points[i + 1].y - points[i].y,
+            points[i + 1].x - points[i].x,
+          ) *
+            180) /
+          Math.PI,
+      };
+    }
+    remaining -= lengths[i];
+  }
+  return { ...points[0], angle: 0, labelSide };
+};
+export const flow = (p: Part) =>
+  currentFlow(
+    solution().readings[p.id]?.current,
+    Math.max(
+      0,
+      ...wires(parts()).map((w) =>
+        Math.abs(solution().readings[w.id]?.current ?? 0),
+      ),
+    ),
+  );
+
+export const inspectedPart = () => {
+  const part = selectedPart() ?? hovered();
+  return part?.kind === "wire" ? undefined : part;
+};
+export const errors = (part: Part) =>
+  componentErrors(part, parts(), solution());
 
 export const currentFlow = (current: number | undefined, maximum: number) => {
   if (current === undefined || !Number.isFinite(current))

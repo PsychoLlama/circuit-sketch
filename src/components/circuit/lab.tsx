@@ -1,10 +1,10 @@
-import { createLab } from "~/state/circuit/actions";
+import { mountLab } from "~/state/circuit/actions";
 import Library from "./library";
 import Editor from "./editor";
 import Inspector from "./inspector";
 
 const CircuitLab = () => {
-  const lab = createLab();
+  mountLab();
 
   return (
     <main class="app-shell" tabIndex={-1}>
@@ -22,9 +22,9 @@ const CircuitLab = () => {
         </div>
       </header>
       <div class="workspace">
-        <Library lab={lab} />
-        <Editor lab={lab} />
-        <Inspector lab={lab} />
+        <Library />
+        <Editor />
+        <Inspector />
       </div>
       <footer>
         <span>

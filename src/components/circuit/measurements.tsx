@@ -1,10 +1,14 @@
+import {
+  solution,
+  format,
+  readingFor,
+  storedEnergy,
+} from "~/state/circuit/formulas";
 import { Show } from "solid-js";
-import type { Lab } from "~/state/circuit/actions";
 import type { Part } from "~/state/circuit/data";
-import { format, readingFor, storedEnergy } from "~/state/circuit/formulas";
 
-const Measurements = (props: { lab: Lab; part: Part }) => {
-  const reading = () => readingFor(props.lab.solution(), props.part.id);
+const Measurements = (props: { part: Part }) => {
+  const reading = () => readingFor(solution(), props.part.id);
 
   return (
     <>

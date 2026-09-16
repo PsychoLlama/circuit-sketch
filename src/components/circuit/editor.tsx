@@ -1,6 +1,11 @@
-import { For, Show } from "solid-js";
-import type { Lab } from "~/state/circuit/actions";
 import {
+  errors,
+  flow,
+  pan,
+  path,
+  point,
+  solution,
+  wireLabel,
   format,
   partValue,
   componentName,
@@ -8,11 +13,45 @@ import {
   wires,
   isJunction,
 } from "~/state/circuit/formulas";
+import {
+  allowDrop,
+  bindCanvas,
+  cancelDrag,
+  canvas,
+  choose,
+  clear,
+  clearHover,
+  clickPin,
+  drop,
+  endDrag,
+  example,
+  move,
+  previewPart,
+  redo,
+  resetZoom,
+  scroll,
+  startDrag,
+  startPin,
+  toggleLabels,
+  undo,
+  zoomIn,
+  zoomOut,
+} from "~/state/circuit/actions";
+import {
+  future,
+  history,
+  labels,
+  parts,
+  pending,
+  preview,
+  selected,
+  tool,
+  zoom,
+} from "~/state/circuit/data";
+import { For, Show } from "solid-js";
 import Symbol from "./symbol";
 
-const Editor = (props: { lab: Lab }) => {
-  const lab = props.lab;
-
+const Editor = () => {
   return (
     <section class="editor">
       <div class="toolbar">
@@ -24,119 +63,112 @@ const Editor = (props: { lab: Lab }) => {
           <button
             title="Undo (Ctrl+Z)"
             aria-label="Undo"
-            disabled={!lab.history().length}
-            onClick={lab.undo}
+            disabled={!history().length}
+            onClick={undo}
           >
             ↶
           </button>
           <button
             title="Redo (Ctrl+Shift+Z)"
             aria-label="Redo"
-            disabled={!lab.future().length}
-            onClick={lab.redo}
+            disabled={!future().length}
+            onClick={redo}
           >
             ↷
           </button>
           <span class="separator" />
-          <button
-            class={lab.labels() ? "toggled" : ""}
-            onClick={lab.toggleLabels}
-          >
+          <button class={labels() ? "toggled" : ""} onClick={toggleLabels}>
             Readings
           </button>
-          <button disabled={!lab.parts().length} onClick={lab.clear}>
+          <button disabled={!parts().length} onClick={clear}>
             Clear
           </button>
         </div>
       </div>
-      <div class={`canvas-wrap ${lab.tool() !== "select" ? "placing" : ""}`}>
+      <div class={`canvas-wrap ${tool() !== "select" ? "placing" : ""}`}>
         <div class="canvas-caption">
           <span class="eyebrow">WORKSPACE</span>
           <span>
-            {components(lab.parts()).length} components ·{" "}
-            {wires(lab.parts()).length} wires
+            {components(parts()).length} components · {wires(parts()).length}{" "}
+            wires
           </span>
         </div>
         <svg
-          ref={lab.bindCanvas}
-          on:wheel={lab.scroll}
+          ref={bindCanvas}
+          on:wheel={scroll}
           class="circuit-canvas"
           aria-label="Circuit canvas"
-          onClick={lab.canvas}
-          onDragOver={lab.allowDrop}
-          onDrop={lab.drop}
-          onPointerMove={lab.move}
-          onPointerUp={lab.endDrag}
-          onPointerCancel={lab.cancelDrag}
+          onClick={canvas}
+          onDragOver={allowDrop}
+          onDrop={drop}
+          onPointerMove={move}
+          onPointerUp={endDrag}
+          onPointerCancel={cancelDrag}
         >
           <defs>
             <pattern
               id="grid"
-              x={lab.pan().x}
-              y={lab.pan().y}
-              width={20 * lab.zoom()}
-              height={20 * lab.zoom()}
+              x={pan().x}
+              y={pan().y}
+              width={20 * zoom()}
+              height={20 * zoom()}
               patternUnits="userSpaceOnUse"
             >
               <circle cx="1" cy="1" r="0.8" fill="#cdd2d2" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
-          <g
-            transform={`translate(${lab.pan().x} ${lab.pan().y}) scale(${lab.zoom()})`}
-          >
-            <Show when={lab.pending() && lab.preview()}>
+          <g transform={`translate(${pan().x} ${pan().y}) scale(${zoom()})`}>
+            <Show when={pending() && preview()}>
               <path
                 class="wire-preview"
-                d={`M ${lab.point(lab.pending()!).x} ${lab.point(lab.pending()!).y} L ${lab.preview()!.x} ${lab.preview()!.y}`}
+                d={`M ${point(pending()!).x} ${point(pending()!).y} L ${preview()!.x} ${preview()!.y}`}
               />
             </Show>
-            <For each={wires(lab.parts())}>
+            <For each={wires(parts())}>
               {(p) => (
-                <g class={`wire ${lab.flow(p).status}`}>
+                <g class={`wire ${flow(p).status}`}>
                   <title>
-                    {lab.flow(p).status === "unknown"
+                    {flow(p).status === "unknown"
                       ? "Current unknown"
-                      : `${format(Math.abs(lab.solution().readings[p.id]?.current ?? 0), "A")} · ${lab.flow(p).status === "idle" ? "No current" : lab.flow(p).reverse ? "B → A" : "A → B"}`}
+                      : `${format(Math.abs(solution().readings[p.id]?.current ?? 0), "A")} · ${flow(p).status === "idle" ? "No current" : flow(p).reverse ? "B → A" : "A → B"}`}
                   </title>
-                  <path class="wire-line" d={lab.path(p)} />
-                  <Show when={lab.flow(p).status === "active"}>
+                  <path class="wire-line" d={path(p)} />
+                  <Show when={flow(p).status === "active"}>
                     <path
                       class="wire-flow"
-                      d={lab.path(p)}
+                      d={path(p)}
                       style={{
-                        "animation-duration": `${lab.flow(p).duration}s`,
-                        "animation-direction": lab.flow(p).reverse
+                        "animation-duration": `${flow(p).duration}s`,
+                        "animation-direction": flow(p).reverse
                           ? "reverse"
                           : "normal",
                       }}
                     />
                   </Show>
-                  <Show when={lab.labels() && lab.solution().readings[p.id]}>
+                  <Show when={labels() && solution().readings[p.id]}>
                     <text
                       class="wire-reading"
-                      x={lab.wireLabel(p).x + 8 * lab.wireLabel(p).labelSide}
-                      text-anchor={
-                        lab.wireLabel(p).labelSide < 0 ? "end" : "start"
-                      }
-                      y={lab.wireLabel(p).y - 8}
+                      x={wireLabel(p).x + 8 * wireLabel(p).labelSide}
+                      text-anchor={wireLabel(p).labelSide < 0 ? "end" : "start"}
+                      y={wireLabel(p).y - 8}
                     >
-                      {format(lab.solution().readings[p.id]?.current, "A")}
+                      {format(solution().readings[p.id]?.current, "A")}
                     </text>
                   </Show>
                 </g>
               )}
             </For>
-            <For each={components(lab.parts())}>
+            <For each={components(parts())}>
               {(p) => (
                 <g
                   data-part={p.id}
                   transform={`translate(${p.x} ${p.y})`}
-                  class={`circuit-part ${lab.selected() === p.id ? "selected" : ""} ${lab.errors(p).length ? "has-error" : ""}`}
-                  onPointerDown={(e) => lab.startDrag(e, p)}
-                  onPointerEnter={(e) => lab.previewPart(e, p.id)}
+                  class={`circuit-part ${selected() === p.id ? "selected" : ""} ${errors(p).length ? "has-error" : ""}`}
+                  onPointerDown={(e) => startDrag(e, p)}
+                  onPointerEnter={(e) => previewPart(e, p.id)}
 
-                  onPointerLeave={lab.clearHover}
+                  onPointerLeave={clearHover}
                 >
                   <rect
                     class="part-bg"
@@ -160,17 +192,17 @@ const Editor = (props: { lab: Lab }) => {
                     closed={p.closed}
                     lit={
                       (p.kind === "led" || p.kind === "lamp") &&
-                      !lab.errors(p).length &&
-                      (lab.solution().readings[p.id]?.power ?? 0) > 0.001
+                      !errors(p).length &&
+                      (solution().readings[p.id]?.power ?? 0) > 0.001
                     }
                   />
-                  <Show when={lab.errors(p).length}>
+                  <Show when={errors(p).length}>
                     <g
                       class="error-indicator"
                       role="img"
-                      aria-label={`${p.id}: ${lab.errors(p).join(" ")}`}
+                      aria-label={`${p.id}: ${errors(p).join(" ")}`}
                     >
-                      <title>{lab.errors(p).join("\n")}</title>
+                      <title>{errors(p).join("\n")}</title>
                       <circle cx="46" cy="-27" r="10" />
                       <text x="46" y="-23">
                         !
@@ -180,19 +212,19 @@ const Editor = (props: { lab: Lab }) => {
                   <text class="part-value" x="0" y="52">
                     {partValue(p)}
                   </text>
-                  <Show when={lab.labels() && lab.solution().readings[p.id]}>
+                  <Show when={labels() && solution().readings[p.id]}>
                     <text class="part-reading" x="0" y="70">
-                      {format(lab.solution().readings[p.id]?.voltage, "V")} ·{" "}
-                      {format(lab.solution().readings[p.id]?.current, "A")}
+                      {format(solution().readings[p.id]?.voltage, "V")} ·{" "}
+                      {format(solution().readings[p.id]?.current, "A")}
                     </text>
                   </Show>
                   <For each={["a", "b"] as const}>
                     {(side) => (
                       <g
                         data-pin={p[side]}
-                        class={`pin ${lab.pending() === p[side] ? "pending" : ""}`}
-                        onPointerDown={(e) => lab.startPin(e, p[side])}
-                        onClick={lab.clickPin}
+                        class={`pin ${pending() === p[side] ? "pending" : ""}`}
+                        onPointerDown={(e) => startPin(e, p[side])}
+                        onClick={clickPin}
                       >
                         <circle
                           class="pin-hit"
@@ -206,9 +238,7 @@ const Editor = (props: { lab: Lab }) => {
                             (side === "a" ? -1 : 1) * (p.terminalOffset ?? 48)
                           }
                           r="4"
-                          class={
-                            isJunction(lab.parts(), p[side]) ? "junction" : ""
-                          }
+                          class={isJunction(parts(), p[side]) ? "junction" : ""}
                         />
                         <text
                           x={(side === "a" ? -1 : 1) * (p.terminalOffset ?? 48)}
@@ -224,18 +254,18 @@ const Editor = (props: { lab: Lab }) => {
             </For>
           </g>
         </svg>
-        <Show when={!lab.parts().length && lab.tool() === "select"}>
+        <Show when={!parts().length && tool() === "select"}>
           <div class="empty-canvas">
             <h1>New circuit</h1>
-            <button class="primary" onClick={() => lab.choose("source")}>
+            <button class="primary" onClick={() => choose("source")}>
               + Add source
             </button>
-            <button class="text-button" onClick={() => lab.example("series")}>
+            <button class="text-button" onClick={() => example("series")}>
               Load series example <span>↗</span>
             </button>
           </div>
         </Show>
-        <Show when={lab.parts().length}>
+        <Show when={parts().length}>
           <div class="flow-legend">
             <span class="flow-swatch" /> Current
             <span class="idle-swatch" /> Dotted = unknown
@@ -243,35 +273,33 @@ const Editor = (props: { lab: Lab }) => {
         </Show>
         <div class="canvas-bottom">
           <div class="mode-pill">
-            <span class="accent-text">
-              {lab.tool() === "select" ? "↖" : "+"}
-            </span>
-            {lab.pending()
+            <span class="accent-text">{tool() === "select" ? "↖" : "+"}</span>
+            {pending()
               ? "Click a terminal to finish the wire"
-              : lab.tool() === "select"
+              : tool() === "select"
                 ? "Select"
-                : lab.tool() === "wire"
+                : tool() === "wire"
                   ? "Click two terminals to connect"
-                  : `Click canvas to place ${componentName(lab.tool())?.toLowerCase()}`}
-            <Show when={lab.tool() !== "select"}>
-              <button onClick={() => lab.choose("select")}>Esc</button>
+                  : `Click canvas to place ${componentName(tool())?.toLowerCase()}`}
+            <Show when={tool() !== "select"}>
+              <button onClick={() => choose("select")}>Esc</button>
             </Show>
           </div>
           <div class="zoom">
             <button
               aria-label="Zoom out"
-              disabled={lab.zoom() <= 0.5}
-              onClick={lab.zoomOut}
+              disabled={zoom() <= 0.5}
+              onClick={zoomOut}
             >
               −
             </button>
-            <button title="Reset zoom" onClick={lab.resetZoom}>
-              {Math.round(lab.zoom() * 100)}%
+            <button title="Reset zoom" onClick={resetZoom}>
+              {Math.round(zoom() * 100)}%
             </button>
             <button
               aria-label="Zoom in"
-              disabled={lab.zoom() >= 1.5}
-              onClick={lab.zoomIn}
+              disabled={zoom() >= 1.5}
+              onClick={zoomIn}
             >
               +
             </button>

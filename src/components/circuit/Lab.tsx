@@ -12,13 +12,13 @@ const CircuitLab = () => {
         <div class="brand">
           <span class="brand-mark">ϟ</span> current
           <span class="brand-divider" />{" "}
-          <span class="brand-description">An electricity playground</span>
+          <span class="brand-description">Circuit editor</span>
         </div>
         <div class="header-right">
           <span class="live">
             <span class="status-dot" /> LIVE SOLVER
           </span>
-          <span class="version">DC LAB / 01</span>
+          <span class="version">DC</span>
         </div>
       </header>
       <div class="workspace">
@@ -28,7 +28,7 @@ const CircuitLab = () => {
       </div>
       <footer>
         <span>
-          <span class="status-dot" /> All changes solve instantly
+          <span class="status-dot" /> DC steady state
         </span>
         <span>
           Click or drag terminals to wire <i>·</i> Drag to move <i>·</i>{" "}

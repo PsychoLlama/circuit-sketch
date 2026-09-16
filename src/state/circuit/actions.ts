@@ -1,11 +1,19 @@
 import { onMount, onCleanup } from "solid-js";
-import { listenForKeys, pinAt, observeCanvas } from "./effects";
+import {
+  listenForKeys,
+  pinAt,
+  observeCanvas,
+  readCircuit,
+  writeCircuit,
+} from "./effects";
 import {
   catalog,
   defaults,
   createFormulas,
   circuitBounds,
   constrainOffset,
+  parseCircuit,
+  removePart,
 } from "./formulas";
 import { type Kind } from "../../lib/circuit/solver";
 import { createData, type Part } from "./data";
@@ -55,10 +63,24 @@ export const createLab = () => {
     wireLabel,
     flow,
   } = createFormulas(d);
+  const persist = () =>
+    writeCircuit(JSON.stringify({ version: 1, parts: d.parts() }));
+
+  const restore = () => {
+    const saved = parseCircuit(readCircuit());
+    if (!saved) return;
+    d.setParts(saved);
+    serial = saved.reduce(
+      (max, p) => Math.max(max, Number(p.id.match(/\d+$/)?.[0] ?? 0)),
+      0,
+    );
+  };
+
   const change = (parts: Part[]) => {
     d.setHistory((h) => [...h.slice(-49), d.parts()]);
     d.setFuture([]);
     d.setParts(parts);
+    persist();
   };
 
   const make = (kind: Kind, x: number, y: number): Part => {
@@ -233,6 +255,7 @@ export const createLab = () => {
     ) {
       d.setHistory((h) => [...h.slice(-49), drag.before]);
       d.setFuture([]);
+      persist();
     }
 
     d.setDrag(undefined);
@@ -242,17 +265,10 @@ export const createLab = () => {
     const p = d.parts().find((part) => part.id === id);
 
     if (!p) return;
-    change(
-      d
-        .parts()
-        .filter(
-          (v) =>
-            v.id !== p.id &&
-            (p.kind === "wire" ||
-              v.kind !== "wire" ||
-              (![p.a, p.b].includes(v.a) && ![p.a, p.b].includes(v.b))),
-        ),
-    );
+    change(removePart(d.parts(), p));
+    d.setPending(undefined);
+    d.setPreview(undefined);
+    d.setHover(undefined);
     d.setSelected(undefined);
   };
 
@@ -326,6 +342,7 @@ export const createLab = () => {
     d.setFuture((f) => [...f, d.parts()]);
     d.setParts(h[h.length - 1]);
     d.setHistory(h.slice(0, -1));
+    persist();
     d.setSelected(undefined);
     d.setPending(undefined);
   };
@@ -337,6 +354,7 @@ export const createLab = () => {
     d.setHistory((h) => [...h, d.parts()]);
     d.setParts(f[f.length - 1]);
     d.setFuture(f.slice(0, -1));
+    persist();
   };
 
   const key = (e: KeyboardEvent) => {
@@ -377,7 +395,10 @@ export const createLab = () => {
     }
   };
 
-  onMount(() => onCleanup(listenForKeys(key)));
+  onMount(() => {
+    restore();
+    onCleanup(listenForKeys(key));
+  });
 
   const libraryDrag = (e: DragEvent, kind: Kind) => {
     if (kind === "wire") return;
@@ -395,6 +416,7 @@ export const createLab = () => {
 
   return {
     ...d,
+    restore,
     pan,
     bindCanvas,
     scroll,

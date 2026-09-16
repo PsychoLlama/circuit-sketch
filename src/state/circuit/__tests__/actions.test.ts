@@ -293,3 +293,116 @@ describe("experiment flow", () => {
       expect(reading.current).toBeCloseTo(0);
   });
 });
+
+describe("replacement and reconnection", () => {
+  it("replaces an edited circuit with an example in one undo step", () => {
+    const lab = createLab();
+    lab.example("series");
+    lab.update(lab.parts()[1].id, { value: 3300 });
+    const before = lab.parts();
+    lab.example("parallel");
+    const replacement = lab.parts();
+    lab.undo();
+    expect(lab.parts()).toEqual(before);
+    lab.redo();
+    expect(lab.parts()).toEqual(replacement);
+  });
+
+  it("joins wires across a removed component and preserves their resistance", () => {
+    const lab = createLab();
+    lab.example("series");
+    const resistor = lab.parts()[1];
+    const attached = lab
+      .parts()
+      .filter(
+        (p) =>
+          p.kind === "wire" &&
+          [p.a, p.b].some((node) => node === resistor.a || node === resistor.b),
+      );
+    lab.update(attached[0].id, { value: 20 });
+    lab.update(attached[1].id, { value: 30 });
+    const before = lab.parts();
+    lab.remove(resistor.id);
+    expect(lab.parts()).toHaveLength(4);
+    expect(lab.parts().find((p) => p.id === attached[0].id)?.value).toBe(50);
+    const result = solve(lab.parts());
+    expect(result.error).toBeUndefined();
+    expect(Math.abs(result.readings[lab.parts()[0].id].current)).toBeCloseTo(
+      9 / 50,
+    );
+    lab.undo();
+    expect(lab.parts()).toEqual(before);
+    lab.redo();
+    expect(lab.parts()).toHaveLength(4);
+  });
+
+  it("reverses inserting a component into a resistive wire by deleting it", () => {
+    const lab = createLab();
+    lab.example("series");
+    const wire = lab.parts().find((p) => p.kind === "wire")!;
+    lab.update(wire.id, { value: 12 });
+    lab.insert("resistor", wire.id);
+    lab.remove();
+    expect(lab.parts().find((p) => p.id === wire.id)).toEqual({
+      ...wire,
+      value: 12,
+    });
+    expect(lab.parts()).toHaveLength(6);
+  });
+});
+
+describe("saved circuits", () => {
+  it("restores edits, avoids duplicate IDs, and persists undo and clear", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+      },
+    });
+    try {
+      const first = createLab();
+      first.example("series");
+      first.update(first.parts()[1].id, { value: 4700 });
+      const second = createLab();
+      second.restore();
+      expect(second.parts()).toEqual(first.parts());
+      second.insert(
+        "resistor",
+        second.parts().find((p) => p.kind === "wire")!.id,
+      );
+      expect(new Set(second.parts().map((p) => p.id)).size).toBe(
+        second.parts().length,
+      );
+      second.undo();
+      const third = createLab();
+      third.restore();
+      expect(third.parts()).toEqual(first.parts());
+      third.clear();
+      const fourth = createLab();
+      fourth.restore();
+      expect(fourth.parts()).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("ignores malformed saved data and unavailable storage", () => {
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: () => '{"version":1,"parts":[{}]}',
+        setItem: () => {
+          throw new Error("Storage disabled");
+        },
+      },
+    });
+    try {
+      const lab = createLab();
+      lab.restore();
+      expect(lab.parts()).toEqual([]);
+      expect(() => lab.example("series")).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

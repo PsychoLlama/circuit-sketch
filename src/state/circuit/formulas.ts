@@ -267,3 +267,71 @@ export const constrainOffset = (
 
 export const isJunction = (parts: Part[], node: string) =>
   wires(parts).filter((wire) => wire.a === node || wire.b === node).length > 1;
+
+export const parseCircuit = (raw: string | null): Part[] | undefined => {
+  if (!raw) return;
+
+  try {
+    const saved = JSON.parse(raw);
+    if (saved.version !== 1 || !Array.isArray(saved.parts)) return;
+    const parts: unknown[] = saved.parts;
+    if (
+      !parts.every((value): value is Part => {
+        if (!value || typeof value !== "object") return false;
+        const p = value as Part;
+        return (
+          typeof p.id === "string" &&
+          p.id.length > 0 &&
+          typeof p.a === "string" &&
+          typeof p.b === "string" &&
+          catalog.some((c) => c.kind === p.kind) &&
+          Number.isFinite(p.value) &&
+          Number.isFinite(p.x) &&
+          Number.isFinite(p.y) &&
+          (p.closed === undefined || typeof p.closed === "boolean") &&
+          (p.terminalOffset === undefined || Number.isFinite(p.terminalOffset))
+        );
+      })
+    )
+      return;
+    if (new Set(parts.map((p) => p.id)).size !== parts.length) return;
+    return parts;
+  } catch {
+    return;
+  }
+};
+
+export const removePart = (parts: Part[], part: Part) => {
+  if (part.kind === "wire") return parts.filter((p) => p.id !== part.id);
+
+  const attached = (node: string) =>
+    parts.filter((p) => p.kind === "wire" && (p.a === node || p.b === node));
+  const left = attached(part.a);
+  const right = attached(part.b);
+  const remaining = parts.filter(
+    (p) => p.id !== part.id && !left.includes(p) && !right.includes(p),
+  );
+
+  if (left.length === 1 && right.length === 1 && left[0] !== right[0]) {
+    const a = left[0].a === part.a ? left[0].b : left[0].a;
+    const b = right[0].a === part.b ? right[0].b : right[0].a;
+    if (a !== b)
+      remaining.push({
+        ...left[0],
+        a,
+        b,
+        value: left[0].value + right[0].value,
+      });
+  }
+
+  return remaining;
+};
+
+export const circuitPower = (solution: Solution, supplied: boolean) =>
+  solution.error
+    ? undefined
+    : Object.values(solution.readings).reduce(
+        (total, reading) =>
+          total + Math.max(0, supplied ? -reading.power : reading.power),
+        0,
+      );

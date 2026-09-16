@@ -24,3 +24,21 @@ export const observeCanvas = (
 
   return () => observer.disconnect();
 };
+
+const storageKey = "current.circuit.v1";
+
+export const readCircuit = () => {
+  try {
+    return window.localStorage.getItem(storageKey);
+  } catch {
+    return null;
+  }
+};
+
+export const writeCircuit = (value: string) => {
+  try {
+    window.localStorage.setItem(storageKey, value);
+  } catch {
+    // Editing remains available when browser storage is unavailable or full.
+  }
+};

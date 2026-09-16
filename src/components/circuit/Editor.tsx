@@ -228,35 +228,19 @@ const Editor = (props: { lab: Lab }) => {
         </svg>
         <Show when={!lab.parts().length && lab.tool() === "select"}>
           <div class="empty-canvas">
-            <div class="empty-schematic">
-              <svg viewBox="0 0 180 90">
-                <path d="M20 45H60M120 45H160" />
-                <circle cx="20" cy="45" r="4" />
-                <circle cx="160" cy="45" r="4" />
-                <rect x="60" y="20" width="60" height="50" rx="6" />
-                <path d="M80 45h20m-10-10v20" />
-              </svg>
-            </div>
-            <span class="eyebrow">A LITTLE CURIOSITY. A CLOSED LOOP.</span>
-            <h1>Make electricity make sense.</h1>
-            <p>
-              Build a circuit and see what’s happening
-              <br />
-              at every connection. No breadboard required.
-            </p>
+            <h1>New circuit</h1>
             <button class="primary" onClick={() => lab.choose("source")}>
-              + Place your first source
+              + Add source
             </button>
             <button class="text-button" onClick={() => lab.example("series")}>
-              Or explore a working circuit <span>↗</span>
+              Load series example <span>↗</span>
             </button>
           </div>
         </Show>
         <Show when={lab.parts().length}>
           <div class="flow-legend">
-            <span class="flow-swatch" /> Conventional current · faster = more
-            current
-            <span class="idle-swatch" /> Still = no current · dotted = unknown
+            <span class="flow-swatch" /> Current
+            <span class="idle-swatch" /> Dotted = unknown
           </div>
         </Show>
         <div class="canvas-bottom">
@@ -267,7 +251,7 @@ const Editor = (props: { lab: Lab }) => {
             {lab.pending()
               ? "Click a terminal to finish the wire"
               : lab.tool() === "select"
-                ? "Scroll to pan · Shift + scroll for horizontal"
+                ? "Select"
                 : lab.tool() === "wire"
                   ? "Click two terminals to connect"
                   : `Click canvas to place ${componentName(lab.tool())?.toLowerCase()}`}

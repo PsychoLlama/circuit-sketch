@@ -1,6 +1,14 @@
 import { For, Show } from "solid-js";
 import type { Lab } from "~/state/circuit/actions";
-import { componentCatalog, componentName } from "~/state/circuit/formulas";
+import {
+  componentCatalog,
+  componentName,
+  components,
+  wires,
+  nodeCount,
+  circuitPower,
+  format,
+} from "~/state/circuit/formulas";
 import type { Kind } from "~/lib/circuit/solver";
 import Symbol from "./Symbol";
 import Measurements from "./Measurements";
@@ -13,34 +21,35 @@ const Inspector = (props: { lab: Lab }) => {
       <div class="panel-heading">
         INSPECTOR{" "}
         <span>
-          {lab.selected() ? "Selected · Esc to dismiss" : "Hover preview"}
+          {lab.selected() ? "Selected" : lab.hovered() ? "Preview" : "Circuit"}
         </span>
       </div>
       <Show
         when={lab.inspectedPart()}
         fallback={
-          <div class="inspector-empty">
-            <div class="scope-icon">⌖</div>
-            <h3>A multimeter, everywhere.</h3>
-            <p>
-              Hover over any component or wire to take a reading. Select it to
-              adjust its properties.
-            </p>
-            <div class="mini-rule" />
-            <span class="eyebrow">THREE THINGS TO WATCH</span>
-            <dl class="concepts">
-              <dt>
-                Voltage <b>V</b>
-              </dt>
-              <dd>The potential difference between two points.</dd>
-              <dt>
-                Current <b>A</b>
-              </dt>
-              <dd>The rate of charge flow through a path.</dd>
-              <dt>
-                Resistance <b>Ω</b>
-              </dt>
-              <dd>How much a path opposes current.</dd>
+          <div class="panel-section">
+            <span class="eyebrow">CIRCUIT</span>
+            <dl class="measurements">
+              <div>
+                <dt>Components</dt>
+                <dd>{components(lab.parts()).length}</dd>
+              </div>
+              <div>
+                <dt>Wires</dt>
+                <dd>{wires(lab.parts()).length}</dd>
+              </div>
+              <div>
+                <dt>Solved nodes</dt>
+                <dd>{nodeCount(lab.solution())}</dd>
+              </div>
+              <div>
+                <dt>Power supplied</dt>
+                <dd>{format(circuitPower(lab.solution(), true), "W")}</dd>
+              </div>
+              <div>
+                <dt>Power absorbed</dt>
+                <dd>{format(circuitPower(lab.solution(), false), "W")}</dd>
+              </div>
             </dl>
           </div>
         }
@@ -159,10 +168,6 @@ const Inspector = (props: { lab: Lab }) => {
             <div class="panel-section">
               <span class="eyebrow">ELECTRICAL STATE</span>
               <Measurements lab={lab} part={p()} />
-              <p class="fine">
-                Signed readings follow A → B. Negative current flows B → A.
-                Voltages use the source’s negative terminal as 0 V.
-              </p>
             </div>
             <div class="panel-section">
               <span class="eyebrow">INTERNAL STATE</span>
@@ -189,12 +194,6 @@ const Inspector = (props: { lab: Lab }) => {
                 </Show>
               </dl>
             </div>
-            <Show when={p().kind === "capacitor"}>
-              <div class="notice">
-                DC equilibrium: this capacitor is fully settled. Current is
-                zero; charging over time is not simulated.
-              </div>
-            </Show>
             <Show when={p().kind === "wire"}>
               <div class="panel-section">
                 <span class="eyebrow">EDIT PATH</span>
@@ -210,10 +209,6 @@ const Inspector = (props: { lab: Lab }) => {
                 <button class="wide" onClick={() => lab.pin(p().a)}>
                   Branch from terminal A ↗
                 </button>
-                <p class="fine">
-                  Then click another terminal. Crossing wires are only connected
-                  at terminals.
-                </p>
               </div>
             </Show>
             <div class="panel-section">
@@ -232,17 +227,6 @@ const Inspector = (props: { lab: Lab }) => {
       </Show>
       <div class="model-note">
         <span class="status-dot" /> DC steady state{" "}
-        <p>
-          Ideal, linear components. No heat, breakdown, AC, or charging
-          transients.
-        </p>
-        <a
-          href="https://lpsa.swarthmore.edu/Systems/Electrical/mna/MNA3.html"
-          target="_blank"
-          rel="noreferrer"
-        >
-          How the circuit is solved ↗
-        </a>
       </div>
     </aside>
   );

@@ -12,6 +12,7 @@ import {
   components,
   wires,
   isJunction,
+  looseTerminals,
 } from "~/state/circuit/formulas";
 import {
   allowDrop,
@@ -32,6 +33,8 @@ import {
   scroll,
   startDrag,
   startPin,
+  startTerminal,
+  selectWire,
   toggleLabels,
   undo,
   zoomIn,
@@ -127,7 +130,17 @@ const Editor = () => {
             </Show>
             <For each={wires(parts())}>
               {(p) => (
-                <g class={`wire ${flow(p).status}`}>
+                <g
+                  data-part={p.id}
+                  class={`wire ${flow(p).status} ${selected() === p.id ? "selected" : ""}`}
+                  onPointerDown={(event) => selectWire(event, p.id)}
+                  onPointerEnter={(event) => previewPart(event, p.id)}
+                  onPointerLeave={clearHover}
+                >
+                  <path class="wire-hit" d={path(p)} />
+                  <Show when={selected() === p.id}>
+                    <path class="wire-selection" d={path(p)} />
+                  </Show>
                   <title>
                     {flow(p).status === "unknown"
                       ? "Current unknown"
@@ -156,6 +169,21 @@ const Editor = () => {
                       {format(solution().readings[p.id]?.current, "A")}
                     </text>
                   </Show>
+                </g>
+              )}
+            </For>
+            <For each={looseTerminals()}>
+              {(terminal) => (
+                <g
+                  data-pin={terminal.node}
+                  class="pin loose-terminal"
+                  transform={`translate(${terminal.x} ${terminal.y})`}
+                  onPointerDown={(event) => startTerminal(event, terminal.node)}
+                  onClick={clickPin}
+                >
+                  <title>Drag to move or reconnect terminal</title>
+                  <circle class="pin-hit" r="12" />
+                  <circle r="5" />
                 </g>
               )}
             </For>
@@ -268,7 +296,7 @@ const Editor = () => {
         <Show when={parts().length}>
           <div class="flow-legend">
             <span class="flow-swatch" /> Current
-            <span class="idle-swatch" /> Dotted = unknown
+            <span class="idle-swatch" /> Dashed = unknown
           </div>
         </Show>
         <div class="canvas-bottom">

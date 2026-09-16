@@ -1,5 +1,5 @@
 import { createMemo, createRoot } from "solid-js";
-import { createCircuitGraph } from "~/lib/circuit/graph";
+import { analyzeIslands } from "~/lib/circuit/islands";
 import {
   toComponent,
   toSolution,
@@ -163,35 +163,49 @@ export const pan = () =>
 
 // This memo shares the browser editor's module lifetime. Server renders only
 // read the initial empty state; restoration and editing happen on the client.
-export const circuitGraph = createRoot(() =>
-  createCircuitGraph(
-    () => parts().map(toComponent),
-    undefined,
-    () => parts().find((part) => part.kind === "source")?.b,
+export const circuitGraph = createRoot(() => ({
+  snapshot: createMemo(() =>
+    analyzeIslands(
+      parts().map(toComponent),
+      undefined,
+      parts().find((part) => part.kind === "source")?.b,
+    ),
   ),
-);
+}));
 export const solution = createRoot(() =>
   createMemo(() => toSolution(circuitGraph.snapshot())),
 );
 export const selectedPart = () => parts().find((p) => p.id === selected());
 export const hovered = () => parts().find((p) => p.id === hover()?.id);
-export const point = (node: string): { x: number; y: number } => {
-  for (const p of parts())
+export const pointFor = (
+  items: Part[],
+  node: string,
+): { x: number; y: number } => {
+  for (const p of items)
     if (p.kind !== "wire") {
       if (p.a === node) return { x: p.x - (p.terminalOffset ?? 48), y: p.y };
 
       if (p.b === node) return { x: p.x + (p.terminalOffset ?? 48), y: p.y };
     }
 
+  for (const p of wires(items)) {
+    if (p.a === node && p.ends?.a) return p.ends.a;
+    if (p.b === node && p.ends?.b) return p.ends.b;
+  }
+
   return { x: 0, y: 0 };
 };
 
-export const route = (p: Part) => {
-  const a = point(p.a),
-    b = point(p.b);
+export const point = (node: string) => pointFor(parts(), node);
+
+export const routeFor = (items: Part[], p: Part) => {
+  const a = pointFor(items, p.a),
+    b = pointFor(items, p.b);
+
+  if (p.via) return [a, ...p.via, b];
 
   const side = (node: string) =>
-    parts().some((part) => part.kind !== "wire" && part.a === node) ? -1 : 1;
+    items.some((part) => part.kind !== "wire" && part.a === node) ? -1 : 1;
 
   const sa = side(p.a),
     sb = side(p.b);
@@ -223,6 +237,8 @@ export const route = (p: Part) => {
     b,
   ];
 };
+
+export const route = (p: Part) => routeFor(parts(), p);
 
 export const path = (p: Part) =>
   route(p)
@@ -278,11 +294,7 @@ export const flow = (p: Part) =>
     ),
   );
 
-export const inspectedPart = () => {
-  const part = selectedPart() ?? hovered();
-
-  return part?.kind === "wire" ? undefined : part;
-};
+export const inspectedPart = () => selectedPart() ?? hovered();
 
 export const errors = (part: Part) =>
   componentErrors(part, parts(), solution());
@@ -303,7 +315,14 @@ export const currentFlow = (current: number | undefined, maximum: number) => {
 
 // Include terminal routing (24 units beyond the pins) and component labels.
 export const circuitBounds = (parts: Part[]) => {
-  const items = components(parts);
+  const items = [
+    ...components(parts),
+    ...wires(parts).flatMap((p) =>
+      Object.values(p.ends ?? {})
+        .filter((end) => end !== undefined)
+        .map((end) => ({ ...end, terminalOffset: 0 })),
+    ),
+  ];
 
   if (!items.length) return undefined;
 
@@ -368,7 +387,24 @@ export const parseCircuit = (raw: string | null): Part[] | undefined => {
           Number.isFinite(p.x) &&
           Number.isFinite(p.y) &&
           (p.closed === undefined || typeof p.closed === "boolean") &&
-          (p.terminalOffset === undefined || Number.isFinite(p.terminalOffset))
+          (p.terminalOffset === undefined ||
+            Number.isFinite(p.terminalOffset)) &&
+          (p.ends === undefined ||
+            (p.ends !== null &&
+              typeof p.ends === "object" &&
+              Object.entries(p.ends).every(
+                ([side, end]) =>
+                  ["a", "b"].includes(side) &&
+                  end &&
+                  Number.isFinite(end.x) &&
+                  Number.isFinite(end.y),
+              ))) &&
+          (p.via === undefined ||
+            (Array.isArray(p.via) &&
+              p.via.every(
+                (pos) =>
+                  pos && Number.isFinite(pos.x) && Number.isFinite(pos.y),
+              )))
         );
       })
     )
@@ -381,32 +417,41 @@ export const parseCircuit = (raw: string | null): Part[] | undefined => {
   }
 };
 
-export const removePart = (parts: Part[], part: Part) => {
-  if (part.kind === "wire") return parts.filter((p) => p.id !== part.id);
+export const removePart = (items: Part[], part: Part) =>
+  items
+    .filter((p) => p.id !== part.id)
+    .map((p) => {
+      if (
+        part.kind === "wire" ||
+        p.kind !== "wire" ||
+        ![p.a, p.b].some((node) => node === part.a || node === part.b)
+      )
+        return p;
 
-  const attached = (node: string) =>
-    parts.filter((p) => p.kind === "wire" && (p.a === node || p.b === node));
+      const ends = { ...p.ends };
 
-  const left = attached(part.a);
-  const right = attached(part.b);
-  const remaining = parts.filter(
-    (p) => p.id !== part.id && !left.includes(p) && !right.includes(p),
-  );
+      for (const side of ["a", "b"] as const) {
+        if (p[side] === part.a)
+          ends[side] = { x: part.x - (part.terminalOffset ?? 48), y: part.y };
+        if (p[side] === part.b)
+          ends[side] = { x: part.x + (part.terminalOffset ?? 48), y: part.y };
+      }
 
-  if (left.length === 1 && right.length === 1 && left[0] !== right[0]) {
-    const a = left[0].a === part.a ? left[0].b : left[0].a;
-    const b = right[0].a === part.b ? right[0].b : right[0].a;
+      return { ...p, ends, via: routeFor(items, p).slice(1, -1) };
+    });
 
-    if (a !== b)
-      remaining.push({
-        ...left[0],
-        a,
-        b,
-        value: left[0].value + right[0].value,
-      });
+export const looseTerminals = () => {
+  const nodes = new Map<string, { x: number; y: number }>();
+  const attached = new Set(components(parts()).flatMap((p) => [p.a, p.b]));
+
+  for (const p of wires(parts())) {
+    for (const side of ["a", "b"] as const) {
+      if (!attached.has(p[side]) && p.ends?.[side])
+        nodes.set(p[side], p.ends[side]!);
+    }
   }
 
-  return remaining;
+  return [...nodes].map(([node, position]) => ({ node, ...position }));
 };
 
 export const circuitPower = (solution: Solution, supplied: boolean) =>
@@ -514,8 +559,10 @@ export const ratingDescription = (part: Part) => {
 };
 
 export const connections = (parts: Part[], part: Part) =>
-  wires(parts).filter(
-    (w) => [part.a, part.b].includes(w.a) || [part.a, part.b].includes(w.b),
+  parts.filter(
+    (w) =>
+      w.id !== part.id &&
+      ([part.a, part.b].includes(w.a) || [part.a, part.b].includes(w.b)),
   );
 
 export const valueLabel = (part: Part) =>
@@ -526,3 +573,69 @@ export const valueLabel = (part: Part) =>
       : part.kind === "capacitor"
         ? "Capacitance (F)"
         : "Resistance (Ω)";
+
+/** Reattach an endpoint, then collapse a two-wire junction without changing resistance.
+ * Junctions with a component pin or more than two wires remain explicit branches.
+ */
+export const joinTerminal = (
+  items: Part[],
+  node: string,
+  target: string,
+): Part[] => {
+  if (node === target) return items;
+  const position = pointFor(items, target);
+  const paths = new Map(
+    items
+      .filter((p) => p.kind === "wire")
+      .map((p) => [p.id, routeFor(items, p)]),
+  );
+  const next = items.map((p) =>
+    p.kind !== "wire"
+      ? p
+      : {
+          ...p,
+          a: p.a === node ? target : p.a,
+          b: p.b === node ? target : p.b,
+          ends: {
+            ...p.ends,
+            ...(p.a === node ? { a: position } : {}),
+            ...(p.b === node ? { b: position } : {}),
+          },
+        },
+  );
+
+  if (next.some((p) => p.kind !== "wire" && (p.a === target || p.b === target)))
+    return next;
+
+  const attached = next.filter(
+    (p) => p.kind === "wire" && (p.a === target || p.b === target),
+  );
+
+  if (attached.length !== 2 || attached.some((p) => p.a === p.b)) return next;
+
+  const [first, second] = attached;
+  const a = first.a === target ? first.b : first.a;
+  const b = second.a === target ? second.b : second.a;
+
+  if (a === b) return next;
+
+  const firstPath = paths.get(first.id)!;
+  const secondPath = paths.get(second.id)!;
+  const from = first.a === target ? [...firstPath].reverse() : firstPath;
+  const to = second.b === target ? [...secondPath].reverse() : secondPath;
+  const merged: Part = {
+    ...first,
+    a,
+    b,
+    value: first.value + second.value,
+    ends: {
+      a: first.ends?.[first.a === target ? "b" : "a"],
+      b: second.ends?.[second.a === target ? "b" : "a"],
+    },
+    via: [...from.slice(1, -1), position, ...to.slice(1, -1)],
+  };
+
+  return next
+    .filter((p) => p.id !== second.id)
+    .map((p) => (p.id === first.id ? merged : p));
+};

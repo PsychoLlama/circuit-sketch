@@ -2,6 +2,9 @@ import { createRoot } from "solid-js";
 import * as effects from "../effects";
 import {
   bindCanvas,
+  make,
+  selectPart,
+  centerCircuit,
   mountLab,
   cancelDrag,
   canvas,
@@ -19,10 +22,21 @@ import {
   scroll,
   setValue,
   startDrag,
+  startTerminal,
+  move,
   undo,
   update,
 } from "../actions";
-import { errors, pan, path } from "../formulas";
+import {
+  errors,
+  pan,
+  path,
+  point,
+  solution,
+  inspectedPart,
+  joinTerminal,
+  parseCircuit,
+} from "../formulas";
 import {
   drag,
   history,
@@ -133,7 +147,7 @@ describe("editor shortcuts", () => {
     expect(pending()).toBeUndefined();
   });
 
-  it("deletes a selected component and its wires with Backspace, with undo", () => {
+  it("deletes a selected component but preserves its wires with Backspace, with undo", () => {
     example("series");
 
     const initial = parts();
@@ -141,11 +155,9 @@ describe("editor shortcuts", () => {
 
     setSelected(source.id);
     key(keyboard("Backspace"));
-    expect(
-      parts().some(
-        (p) => p.id === source.id || p.a === source.a || p.b === source.b,
-      ),
-    ).toBe(false);
+    expect(parts().some((p) => p.id === source.id)).toBe(false);
+    expect(parts().filter((p) => p.kind === "wire")).toHaveLength(3);
+    expect(point(source.a)).toEqual({ x: source.x - 48, y: source.y });
 
     undo();
     expect(parts()).toEqual(initial);
@@ -301,7 +313,7 @@ describe("canvas scrolling", () => {
     setViewport({ width: 800, height: 600 });
     scroll(wheel(40, 50));
     example("parallel");
-    expect(pan()).toEqual({ x: 0, y: 0 });
+    expect(pan()).toEqual({ x: 100, y: 12 });
     scroll(wheel(40, 50));
     clear();
     expect(pan()).toEqual({ x: 0, y: 0 });
@@ -360,52 +372,130 @@ describe("replacement and reconnection", () => {
     expect(parts()).toEqual(replacement);
   });
 
-  it("joins wires across a removed component and preserves their resistance", () => {
+  it("leaves an open gap and preserves wire geometry when deleting a component", () => {
     example("series");
-
     const resistor = parts()[1];
-    const attached = parts().filter(
-      (p) =>
-        p.kind === "wire" &&
-        [p.a, p.b].some((node) => node === resistor.a || node === resistor.b),
-    );
-
-    update(attached[0].id, { value: 20 });
-    update(attached[1].id, { value: 30 });
-
     const before = parts();
+    const paths = before.filter((p) => p.kind === "wire").map(path);
 
     remove(resistor.id);
-    expect(parts()).toHaveLength(4);
-    expect(parts().find((p) => p.id === attached[0].id)?.value).toBe(50);
-
-    const result = solve(parts());
-
-    expect(result.error).toBeUndefined();
-    expect(Math.abs(result.readings[parts()[0].id].current)).toBeCloseTo(
-      9 / 50,
-    );
-
+    expect(parts()).toHaveLength(5);
+    expect(
+      parts()
+        .filter((p) => p.kind === "wire")
+        .map(path),
+    ).toEqual(paths);
+    expect(solve(parts()).readings[parts()[0].id].current).toBeCloseTo(0);
     undo();
     expect(parts()).toEqual(before);
     redo();
-    expect(parts()).toHaveLength(4);
+    expect(parts()).toHaveLength(5);
   });
 
-  it("reverses inserting a component into a resistive wire by deleting it", () => {
+  it("merges loose ends into a single wire with summed resistance", () => {
     example("series");
+    const resistor = parts()[1];
+    remove(resistor.id);
+    const attached = parts().filter(
+      (p) =>
+        p.kind === "wire" &&
+        [p.a, p.b].some((n) => n === resistor.a || n === resistor.b),
+    );
+    update(attached[0].id, { value: 20 });
+    update(attached[1].id, { value: 30 });
+    setParts(joinTerminal(parts(), resistor.a, resistor.b));
+    expect(parts()).toHaveLength(4);
+    expect(parts().find((p) => p.id === attached[0].id)?.value).toBe(50);
+    expect(
+      Math.abs(solve(parts()).readings[parts()[0].id].current),
+    ).toBeCloseTo(9 / 50);
+  });
 
-    const wire = parts().find((p) => p.kind === "wire")!;
+  it("preserves branches when reconnecting to an occupied component pin", () => {
+    example("parallel");
+    const [source, upper, lower] = parts();
+    remove(lower.id);
+    setParts(joinTerminal(parts(), lower.a, source.a));
+    expect(parts().filter((p) => p.kind === "wire")).toHaveLength(4);
+    expect(
+      parts().some(
+        (p) => p.kind === "wire" && p.a === source.a && p.b === upper.a,
+      ),
+    ).toBe(true);
+  });
 
-    update(wire.id, { value: 12 });
-    insert("resistor", wire.id);
-    remove();
-    expect(parts().find((p) => p.id === wire.id)).toEqual({
-      ...wire,
-      value: 12,
-    });
+  it("moves loose terminals with undo, cancellation, and persistence", () => {
+    example("series");
+    const resistor = parts()[1];
+    remove(resistor.id);
+    const before = parts();
+    const svg = {
+      getBoundingClientRect: () => ({ left: 0, top: 0 }),
+      setPointerCapture: vi.fn(),
+    };
+    const event = (x: number, y: number) =>
+      ({
+        button: 0,
+        clientX: x,
+        clientY: y,
+        pointerId: 1,
+        stopPropagation: vi.fn(),
+        currentTarget: { closest: () => svg },
+      }) as unknown as PointerEvent;
 
-    expect(parts()).toHaveLength(6);
+    startTerminal(event(112, 160), resistor.a);
+    move(event(200, 240));
+    expect(point(resistor.a)).toEqual({ x: 200, y: 240 });
+    cancelDrag();
+    expect(parts()).toEqual(before);
+    startTerminal(event(112, 160), resistor.a);
+    move(event(200, 240));
+    const hit = vi.spyOn(effects, "pinAt").mockReturnValue(undefined);
+
+    try {
+      endDrag(event(200, 240));
+      expect(
+        parseCircuit(JSON.stringify({ version: 1, parts: parts() })),
+      ).toEqual(parts());
+      undo();
+      expect(parts()).toEqual(before);
+      redo();
+      expect(point(resistor.a)).toEqual({ x: 200, y: 240 });
+    } finally {
+      hit.mockRestore();
+    }
+  });
+
+  it("selects and inspects wires without disconnecting them", () => {
+    example("series");
+    expect(selected()).toBeUndefined();
+    const before = parts();
+    const wire = before.find((p) => p.kind === "wire")!;
+    selectPart(wire.id);
+    expect(inspectedPart()).toBe(wire);
+    expect(parts()).toBe(before);
+    key(keyboard("Delete"));
+    expect(parts()).toHaveLength(before.length - 1);
+    undo();
+    expect(parts()).toEqual(before);
+  });
+
+  it("keeps existing readings and connections when adding an isolated LED", () => {
+    example("series");
+    const before = parts();
+    const current = solution().readings[before[0].id].current;
+    setParts([...parts(), make("led", 600, 400)]);
+    expect(parts().slice(0, before.length)).toEqual(before);
+    expect(solution().error).toBeUndefined();
+    expect(solution().readings[before[0].id].current).toBeCloseTo(current);
+  });
+
+  it("centers the loaded circuit without selecting a component", () => {
+    setViewport({ width: 800, height: 600 });
+    example("series");
+    centerCircuit();
+    expect(pan()).toEqual({ x: 120, y: 22 });
+    expect(selected()).toBeUndefined();
   });
 });
 
@@ -535,7 +625,7 @@ describe("editor lifecycle", () => {
       expect(listen).toHaveBeenCalledExactlyOnceWith(key);
       expect(observe).toHaveBeenCalledExactlyOnceWith(
         canvasElement,
-        setViewport,
+        expect.any(Function),
       );
 
       expect(stopKeys).not.toHaveBeenCalled();

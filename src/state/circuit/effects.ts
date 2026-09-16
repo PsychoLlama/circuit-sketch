@@ -4,11 +4,11 @@ export const listenForKeys = (handler: (event: KeyboardEvent) => void) => {
   return () => window.removeEventListener("keydown", handler);
 };
 
-export const pinAt = (x: number, y: number) =>
+export const pinAt = (x: number, y: number, exclude?: string) =>
   document
-    .elementFromPoint(x, y)
-    ?.closest("[data-pin]")
-    ?.getAttribute("data-pin");
+    .elementsFromPoint(x, y)
+    .map((element) => element.closest("[data-pin]")?.getAttribute("data-pin"))
+    .find((node) => node && node !== exclude);
 
 export const observeCanvas = (
   canvas: SVGSVGElement,

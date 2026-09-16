@@ -16,6 +16,8 @@ import {
   constrainOffset,
   parseCircuit,
   removePart,
+  joinTerminal,
+  looseTerminals,
 } from "./formulas";
 import { type Kind } from "~/lib/circuit/solver";
 import {
@@ -49,16 +51,27 @@ import {
   viewport,
   zoom,
   type Part,
+  terminalDrag,
+  setTerminalDrag,
 } from "./data";
 
 export const bindCanvas = (canvas: SVGSVGElement) => {
-  onMount(() => onCleanup(observeCanvas(canvas, setViewport)));
+  onMount(() =>
+    onCleanup(
+      observeCanvas(canvas, (size) => {
+        const initial = !viewport().width;
+
+        setViewport(size);
+        if (initial) centerCircuit();
+      }),
+    ),
+  );
 };
 
 export const scroll = (e: WheelEvent) => {
   if (e.ctrlKey || e.metaKey) return;
   e.preventDefault();
-  if (activeDrag() || pinDrag()) return;
+  if (activeDrag() || pinDrag() || terminalDrag()) return;
 
   const scale =
     e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? viewport().height : 1;
@@ -88,6 +101,8 @@ export const restore = () => {
 
   if (!saved) return;
   setParts(saved);
+  setSelected(undefined);
+  centerCircuit();
   setSerial(
     saved.reduce(
       (max, p) => Math.max(max, Number(p.id.match(/\d+$/)?.[0] ?? 0)),
@@ -135,7 +150,21 @@ export const pin = (node: string) => {
     return;
   }
 
-  if (pending() !== node) {
+  if (
+    pending() !== node &&
+    looseTerminals().some(
+      (terminal) => terminal.node === pending() || terminal.node === node,
+    )
+  ) {
+    const loose = looseTerminals().some(
+      (terminal) => terminal.node === pending(),
+    )
+      ? pending()!
+      : node;
+    const target = loose === node ? pending()! : node;
+
+    change(joinTerminal(parts(), loose, target));
+  } else if (pending() !== node) {
     const p = make("wire", 0, 0);
 
     change([...parts(), { ...p, a: pending()!, b: node }]);
@@ -219,6 +248,29 @@ export const startDrag = (e: PointerEvent, p: Part) => {
 export const move = (e: PointerEvent) => {
   if (pending()) setPreview(coords(e));
 
+  const terminal = terminalDrag();
+
+  if (terminal) {
+    const pos = coords(e);
+
+    if (pos)
+      setParts(
+        parts().map((p) =>
+          p.kind !== "wire"
+            ? p
+            : {
+                ...p,
+                ends: {
+                  ...p.ends,
+                  ...(p.a === terminal.node ? { a: pos } : {}),
+                  ...(p.b === terminal.node ? { b: pos } : {}),
+                },
+              },
+        ),
+      );
+    return;
+  }
+
   const drag = activeDrag();
 
   if (!drag) return;
@@ -251,6 +303,8 @@ export const startPin = (e: PointerEvent, node: string) => {
 };
 
 export const cancelDrag = () => {
+  if (terminalDrag()) setParts(terminalDrag()!.before);
+  setTerminalDrag(undefined);
   if (activeDrag()) setParts(activeDrag()!.before);
   setDrag(undefined);
   setPinDrag(undefined);
@@ -259,6 +313,21 @@ export const cancelDrag = () => {
 };
 
 export const endDrag = (e?: PointerEvent) => {
+  const terminal = terminalDrag();
+
+  if (terminal) {
+    const target = e ? pinAt(e.clientX, e.clientY, terminal.node) : undefined;
+    const next = target
+      ? joinTerminal(parts(), terminal.node, target)
+      : parts();
+
+    setParts(terminal.before);
+    if (JSON.stringify(next) !== JSON.stringify(terminal.before)) change(next);
+    else pin(terminal.node);
+    setTerminalDrag(undefined);
+    return;
+  }
+
   const start = pinDrag();
 
   if (start && e) {
@@ -353,10 +422,10 @@ export const example = (which: string) => {
     : [v, r, s, wire(v.a, r.a), wire(r.b, s.a), wire(s.b, v.b)];
 
   change(ps);
-  setSelected(r.id);
+  setSelected(undefined);
   choose("select");
   setZoom(1);
-  setOffset({ x: 0, y: 0 });
+  centerCircuit();
 };
 
 export const undo = () => {
@@ -388,6 +457,8 @@ export const key = (e: KeyboardEvent) => {
     setHover(undefined);
     setPreview(undefined);
     setPinDrag(undefined);
+    if (terminalDrag()) setParts(terminalDrag()!.before);
+    setTerminalDrag(undefined);
     if (activeDrag()) setParts(activeDrag()!.before);
     setDrag(undefined);
     return;
@@ -466,4 +537,39 @@ export const clear = () => {
   setOffset({ x: 0, y: 0 });
   setSelected(undefined);
   choose("select");
+};
+
+export const selectPart = (id: string) => {
+  setSelected(id);
+  setHover(undefined);
+};
+
+export const selectWire = (event: PointerEvent, id: string) => {
+  event.stopPropagation();
+  setSuppressClick(false);
+  selectPart(id);
+};
+
+export const centerCircuit = () => {
+  const bounds = circuitBounds(parts());
+  const size = viewport();
+
+  setOffset(
+    bounds && size.width && size.height
+      ? {
+          x: (size.width - (bounds.left + bounds.right) * zoom()) / 2,
+          y: (size.height - (bounds.top + bounds.bottom) * zoom()) / 2,
+        }
+      : { x: 0, y: 0 },
+  );
+};
+
+export const startTerminal = (event: PointerEvent, node: string) => {
+  if (event.button !== 0) return;
+  event.stopPropagation();
+  setSuppressClick(true);
+  setTerminalDrag({ node, before: parts() });
+  (event.currentTarget as Element)
+    .closest("svg")
+    ?.setPointerCapture(event.pointerId);
 };

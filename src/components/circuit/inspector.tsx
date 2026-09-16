@@ -14,7 +14,13 @@ import {
   connections,
   valueLabel,
 } from "~/state/circuit/formulas";
-import { changeKind, remove, setValue, update } from "~/state/circuit/actions";
+import {
+  changeKind,
+  remove,
+  setValue,
+  update,
+  selectPart,
+} from "~/state/circuit/actions";
 import { parts, selected } from "~/state/circuit/data";
 import { For, Show } from "solid-js";
 import type { Kind } from "~/lib/circuit/solver";
@@ -105,6 +111,29 @@ const Inspector = () => {
                 </label>
               </Show>
             </div>
+            <div class="panel-section">
+              <span class="eyebrow">SPECS</span>
+              <p class="rating-note">
+                Model ratings: {ratingDescription(p())}.
+              </p>
+              <Show when={p().kind === "led" || p().kind === "diode"}>
+                <p class="rating-note">
+                  A: anode (+), B: cathode (−). Piecewise-linear DC model with
+                  10 Ω forward resistance and 1 GΩ reverse resistance. Use a
+                  series resistor for LEDs.
+                </p>
+              </Show>
+              <Show when={p().kind === "lamp"}>
+                <p class="rating-note">
+                  Fixed resistance model; filament heating is not simulated.
+                </p>
+              </Show>
+              <Show when={p().kind === "rheostat"}>
+                <p class="rating-note">
+                  Two-terminal variable resistor. Adjust resistance above.
+                </p>
+              </Show>
+            </div>
             <Show when={p().kind === "switch"}>
               <div class="panel-section">
                 <span class="eyebrow">CONTROLS</span>
@@ -135,29 +164,6 @@ const Inspector = () => {
                   <For each={errors(p())}>{(error) => <li>{error}</li>}</For>
                 </ul>
               </Show>
-              <p class="rating-note">
-                Model ratings: {ratingDescription(p())}.
-              </p>
-              <Show when={p().kind === "led" || p().kind === "diode"}>
-                <p class="rating-note">
-                  A: anode (+), B: cathode (−). Piecewise-linear DC model with
-                  10 Ω forward resistance and 1 GΩ reverse resistance. Use a
-                  series resistor for LEDs.
-                </p>
-              </Show>
-              <Show when={p().kind === "lamp"}>
-                <p class="rating-note">
-                  Fixed resistance model; filament heating is not simulated.
-                </p>
-              </Show>
-              <Show when={p().kind === "rheostat"}>
-                <p class="rating-note">
-                  Two-terminal variable resistor. Adjust resistance above.
-                </p>
-              </Show>
-              <p class="rating-note">
-                Errors clear when corrected; permanent damage is not simulated.
-              </p>
             </div>
             <div class="panel-section">
               <span class="eyebrow">ELECTRICAL STATE</span>
@@ -190,22 +196,29 @@ const Inspector = () => {
             </div>
             <div class="panel-section">
               <span class="eyebrow">CONNECTIONS</span>
-              <For
-                each={connections(parts(), p())}
-                fallback={
-                  <p>No connections yet. Drag between pins to connect.</p>
-                }
-              >
-                {(wire) => (
-                  <button
-                    class="wide"
-                    onClick={() => remove(wire.id)}
-                    aria-label={`Disconnect ${wire.a} from ${wire.b}`}
-                  >
-                    Disconnect {wire.a} ↔ {wire.b}
-                  </button>
-                )}
-              </For>
+              <div class="connection-list">
+                <For
+                  each={connections(parts(), p())}
+                  fallback={
+                    <p>No connections yet. Drag between pins to connect.</p>
+                  }
+                >
+                  {(wire) => (
+                    <button
+                      class="wide connection-button"
+                      onClick={() => selectPart(wire.id)}
+                      aria-label={`Select ${wire.id}`}
+                    >
+                      <svg viewBox="-55 -30 110 60" aria-hidden="true">
+                        <Symbol kind={wire.kind} closed={wire.closed} />
+                      </svg>
+                      <span>
+                        {wire.id} · {componentName(wire.kind)}
+                      </span>
+                    </button>
+                  )}
+                </For>
+              </div>
             </div>
             <div class="panel-section">
               <button class="danger wide" onClick={() => remove(p().id)}>

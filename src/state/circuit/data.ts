@@ -1,7 +1,13 @@
 import { createResettableSignal } from "~/lib/signals";
 import type { Branch, Kind } from "~/lib/circuit/solver";
 
-export type Part = Branch & { x: number; y: number; terminalOffset?: number };
+export type Part = Branch & {
+  x: number;
+  y: number;
+  terminalOffset?: number;
+  ends?: Partial<Record<"a" | "b", { x: number; y: number }>>;
+  via?: { x: number; y: number }[];
+};
 
 export type Hover = { id: string; x: number; y: number };
 
@@ -61,3 +67,7 @@ export const [drag, setDrag] = createResettableSignal<
 >(() => undefined);
 
 export const [serial, setSerial] = createResettableSignal(() => 0);
+
+export const [terminalDrag, setTerminalDrag] = createResettableSignal<
+  { node: string; before: Part[] } | undefined
+>(() => undefined);

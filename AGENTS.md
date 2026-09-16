@@ -47,3 +47,8 @@
 
 - Always prefer `const` over `function`.
 - One component per file.
+- Use `~` imports when reaching across `src/<role>` boundaries.
+- Blank newlines:
+  - Between categories of code (imports, constants, logic, exports)
+  - After multi-line blocks of code (e.g. functions).
+  - Before comments.

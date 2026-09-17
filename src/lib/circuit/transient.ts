@@ -2,38 +2,31 @@ import { analyze } from "./engine";
 import { potential } from "./devices";
 import type { Component, Snapshot } from "./model";
 
-/** Deterministic initial-value query. Capacitor voltages are local integration
- * variables, never retained between calls. Each stage enforces KCL/KVL and
- * obtains dV/dt = I/C from a simultaneous network solve.
- */
-export const transient = (
-  components: readonly Component[],
-  time: number,
-  reference?: string,
-): Snapshot => {
-  const analysis = { mode: "snapshot" as const, time };
-  const fail = (message: string): Snapshot => ({
-    analysis,
-    nodes: {},
-    components: {},
-    diagnostics: [{ code: "numerical", message }],
-  });
-  const capacitors = components.filter((c) => c.capacitor);
+type Checkpoint = { t: number; v: number[]; h: number; attempts: number };
 
-  if (!Number.isFinite(time) || time < 0)
-    return fail("Time must be finite and nonnegative.");
-  if (
-    capacitors.some(
-      (c) =>
-        !Number.isFinite(c.capacitor!.capacitance) ||
-        c.capacitor!.capacitance <= 0 ||
-        !Number.isFinite(c.capacitor!.initialVoltage),
-    )
-  )
-    return fail(
-      "Capacitance must be finite and positive; initial voltage must be finite.",
-    );
-  if (!capacitors.length) return analyze(components, analysis, reference);
+const workLimit = 10000;
+const initialStep = 1e-9;
+
+/** Deterministic initial-value simulation. Capacitor voltages are integration
+ * variables derived only from the initial conditions. Each stage enforces
+ * KCL/KVL and obtains dV/dt = I/C from a simultaneous network solve.
+ *
+ * Accepted steps never depend on a query time, so they are cached as
+ * checkpoints. A query resumes from the latest checkpoint at or before its
+ * time. The result depends only on the circuit and the time, never on query
+ * order, while playback only integrates the newly elapsed interval.
+ */
+export const createTransient = (
+  components: readonly Component[],
+  reference?: string,
+): ((time: number) => Snapshot) => {
+  const capacitors = components.filter((c) => c.capacitor);
+  const invalid = capacitors.some(
+    (c) =>
+      !Number.isFinite(c.capacitor!.capacitance) ||
+      c.capacitor!.capacitance <= 0 ||
+      !Number.isFinite(c.capacitor!.initialVoltage),
+  );
 
   const evaluate = (voltages: number[], t: number) => {
     const snapshot = analyze(
@@ -67,6 +60,7 @@ export const transient = (
       ),
     };
   };
+
   const step = (v: number[], t: number, h: number) => {
     const k1 = evaluate(v, t).derivative;
     const k2 = evaluate(
@@ -87,20 +81,26 @@ export const transient = (
     );
   };
 
-  try {
-    let v = capacitors.map((c) => c.capacitor!.initialVoltage);
-    let t = 0;
-    let h = time / 16;
+  // Advance until `time` is reached. Unclamped runs stay independent of the
+  // requested time, so every accepted step is a reusable checkpoint.
+  const integrate = (
+    from: Checkpoint,
+    time: number,
+    clamp: boolean,
+    accept: (checkpoint: Checkpoint) => void = () => {},
+  ): Checkpoint => {
+    let { t, v, h, attempts } = from;
 
-    evaluate(v, 0);
-    for (let attempts = 0; t < time; attempts++) {
-      if (attempts >= 10000 || t + h === t)
-        return fail(
+    while (t < time) {
+      if (attempts >= workLimit || t + h === t)
+        throw new Error(
           "Transient integration exceeded its numerical resolution or work limit. Reduce the requested time or circuit time-scale range.",
         );
-      h = Math.min(h, time - t);
-      const full = step(v, t, h);
-      const half = step(step(v, t, h / 2), t + h / 2, h / 2);
+      attempts++;
+
+      const size = clamp ? Math.min(h, time - t) : h;
+      const full = step(v, t, size);
+      const half = step(step(v, t, size / 2), t + size / 2, size / 2);
       const error = Math.max(
         ...half.map(
           (x, i) =>
@@ -110,16 +110,98 @@ export const transient = (
       );
 
       if (!Number.isFinite(error))
-        return fail("Transient numerical range exceeded.");
+        throw new Error("Transient numerical range exceeded.");
+      const factor = Math.max(
+        0.1,
+        Math.min(2, error === 0 ? 2 : 0.9 * error ** -0.2),
+      );
+
       if (error <= 1) {
         v = half;
-        t += h;
-      }
-      h *= Math.max(0.1, Math.min(2, error === 0 ? 2 : 0.9 * error ** -0.2));
+        t += size;
+        h = size * factor;
+        accept({ t, v, h, attempts });
+      } else h = size * factor;
     }
 
-    return evaluate(v, time).snapshot;
-  } catch (error) {
-    return fail(error instanceof Error ? error.message : String(error));
+    return { t, v, h, attempts };
+  };
+
+  const checkpoints: Checkpoint[] = [];
+  let failure: { time: number; message: string } | undefined;
+
+  const message = (error: unknown) =>
+    error instanceof Error ? error.message : String(error);
+
+  if (!invalid && capacitors.length) {
+    const v = capacitors.map((c) => c.capacitor!.initialVoltage);
+
+    try {
+      evaluate(v, 0);
+      checkpoints.push({ t: 0, v, h: initialStep, attempts: 0 });
+    } catch (error) {
+      failure = { time: -1, message: message(error) };
+    }
   }
+
+  const extend = (time: number) => {
+    if (failure) return;
+    try {
+      integrate(checkpoints.at(-1)!, time, false, (checkpoint) =>
+        checkpoints.push(checkpoint),
+      );
+    } catch (error) {
+      failure = { time: checkpoints.at(-1)!.t, message: message(error) };
+    }
+  };
+
+  const latest = (time: number) => {
+    let low = 0;
+    let high = checkpoints.length - 1;
+
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+
+      if (checkpoints[mid].t <= time) low = mid;
+      else high = mid - 1;
+    }
+
+    return checkpoints[low];
+  };
+
+  return (time) => {
+    const analysis = { mode: "snapshot" as const, time };
+    const fail = (message: string): Snapshot => ({
+      analysis,
+      nodes: {},
+      components: {},
+      diagnostics: [{ code: "numerical", message }],
+    });
+
+    if (!Number.isFinite(time) || time < 0)
+      return fail("Time must be finite and nonnegative.");
+    if (invalid)
+      return fail(
+        "Capacitance must be finite and positive; initial voltage must be finite.",
+      );
+    if (!capacitors.length) return analyze(components, analysis, reference);
+
+    extend(time);
+    if (failure && failure.time < time) return fail(failure.message);
+
+    try {
+      const { v } = integrate(latest(time), time, true);
+
+      return evaluate(v, time).snapshot;
+    } catch (error) {
+      return fail(message(error));
+    }
+  };
 };
+
+/** One-off query. Prefer `createTransient` when querying repeatedly. */
+export const transient = (
+  components: readonly Component[],
+  time: number,
+  reference?: string,
+): Snapshot => createTransient(components, reference)(time);

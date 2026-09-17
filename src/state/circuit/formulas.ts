@@ -1,5 +1,5 @@
 import { createMemo, createRoot } from "solid-js";
-import { analyzeIslands } from "~/lib/circuit/islands";
+import { analyzeIslands, createTransientIslands } from "~/lib/circuit/islands";
 import {
   toComponent,
   toSolution,
@@ -199,20 +199,27 @@ export const timeAt = (
 export const simulationTime = () =>
   timeAt(playback(), frameTime(), requestedTime());
 
-// This memo shares the browser editor's module lifetime. Server renders only
+// These memos share the browser editor's module lifetime. Server renders only
 // read the initial empty state; restoration and editing happen on the client.
-export const circuitGraph = createRoot(() => ({
-  snapshot: createMemo(() =>
-    analyzeIslands(
-      parts().map(toComponent),
+export const circuitGraph = createRoot(() => {
+  const components = createMemo(() => parts().map(toComponent));
+  const reference = createMemo(
+    () => parts().find((part) => part.kind === "source")?.b,
+  );
+
+  // Rebuilt only when the circuit changes, so playback reuses its trajectory.
+  const simulation = createMemo(() =>
+    createTransientIslands(components(), reference()),
+  );
+
+  return {
+    snapshot: createMemo(() =>
       analysisMode() === "dc"
-        ? { mode: "dc" }
-        : { mode: "snapshot", time: simulationTime() },
-      parts().find((part) => part.kind === "source")?.b,
-      analysisMode() === "transient" ? simulationTime() : undefined,
+        ? analyzeIslands(components(), { mode: "dc" }, reference())
+        : simulation()(simulationTime()),
     ),
-  ),
-}));
+  };
+});
 export const solution = createRoot(() =>
   createMemo(() => toSolution(circuitGraph.snapshot())),
 );

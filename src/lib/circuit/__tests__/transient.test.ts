@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transient } from "../transient";
+import { createTransient, transient } from "../transient";
 import { toComponent, type Branch } from "../solver";
 
 const rc = (initialVoltage = 0, source = 9): Branch[] => [
@@ -39,6 +39,27 @@ describe("capacitor initial-value queries", () => {
     query(rc(), 0);
     expect(query(rc(), 0.001)).toEqual(expected);
   });
+  it("reuses a trajectory without depending on query history", () => {
+    const simulate = createTransient(rc().map(toComponent), "g");
+    const times = [0.02, 0.001, 0.0015, 0, 0.005, 0.001];
+
+    for (const t of times) expect(simulate(t)).toEqual(query(rc(), t));
+  });
+
+  it("matches fresh queries at every playback frame", () => {
+    const simulate = createTransient(rc().map(toComponent), "g");
+
+    for (let t = 0; t < 0.01; t += 0.000137) {
+      const result = simulate(t);
+
+      expect(result).toEqual(query(rc(), t));
+      expect(result.components.C.branches.main.voltage).toBeCloseTo(
+        9 * (1 - Math.exp(-t / 0.001)),
+        6,
+      );
+    }
+  });
+
   it("retains charge on an isolated capacitor", () => {
     const c = query([rc(5)[2]], 100).components.C.branches.main;
     expect(c.voltage).toBe(5);

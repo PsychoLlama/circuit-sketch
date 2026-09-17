@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as effects from "../effects";
-import {
-  changeSpeed,
-  chooseAnalysis,
-  seekTime,
-  togglePlayback,
-} from "../actions";
+import { changeSpeed, seekTime, togglePlayback } from "../actions";
 import { playback, setFrameTime, setParts } from "../data";
 import { simulationTime, solution, timeAt } from "../formulas";
 
@@ -49,8 +44,6 @@ describe("timestamp-anchored playback", () => {
     now.mockReturnValue(11000);
     seekTime(0.002);
     expect(simulationTime()).toBeCloseTo(0.002);
-    chooseAnalysis("dc");
-    expect(playback().running).toBe(false);
     now.mockRestore();
   });
   it("recomputes capacitor readings when seeking backward, without charge mutation", () => {

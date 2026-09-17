@@ -24,7 +24,6 @@ import {
 } from "./formulas";
 import { type Kind } from "~/lib/circuit/solver";
 import {
-  setAnalysisMode,
   setRequestedTime,
   playback,
   setPlayback,
@@ -608,11 +607,6 @@ export const startTerminal = (event: PointerEvent, node: string) => {
   (event.currentTarget as Element)
     .closest("svg")
     ?.setPointerCapture(event.pointerId);
-};
-
-export const chooseAnalysis = (mode: "dc" | "transient") => {
-  if (playback().running) togglePlayback();
-  setAnalysisMode(mode);
 };
 
 export const seekTime = (time: number) => {

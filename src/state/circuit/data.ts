@@ -72,9 +72,6 @@ export const [terminalDrag, setTerminalDrag] = createResettableSignal<
   { node: string; before: Part[] } | undefined
 >(() => undefined);
 
-export const [analysisMode, setAnalysisMode] = createResettableSignal<
-  "dc" | "transient"
->(() => "transient");
 export const [requestedTime, setRequestedTime] = createResettableSignal(
   () => 0,
 );

@@ -1,5 +1,5 @@
 import { createMemo, createRoot } from "solid-js";
-import { analyzeIslands, createTransientIslands } from "~/lib/circuit/islands";
+import { createTransientIslands } from "~/lib/circuit/islands";
 import {
   toComponent,
   toSolution,
@@ -11,7 +11,6 @@ import {
 } from "~/lib/circuit/solver";
 import {
   parts,
-  analysisMode,
   requestedTime,
   playback,
   frameTime,
@@ -213,11 +212,7 @@ export const circuitGraph = createRoot(() => {
   );
 
   return {
-    snapshot: createMemo(() =>
-      analysisMode() === "dc"
-        ? analyzeIslands(components(), { mode: "dc" }, reference())
-        : simulation()(simulationTime()),
-    ),
+    snapshot: createMemo(() => simulation()(simulationTime())),
   };
 });
 export const solution = createRoot(() =>
@@ -705,6 +700,4 @@ export const joinTerminal = (
 };
 
 export const analysisLabel = () =>
-  analysisMode() === "dc"
-    ? "DC equilibrium"
-    : `Transient · t = ${format(simulationTime(), "s")}`;
+  `Transient · t = ${format(simulationTime(), "s")}`;

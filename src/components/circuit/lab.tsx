@@ -1,6 +1,6 @@
 import { mountLab } from "~/state/circuit/actions";
 import { analysisLabel } from "~/state/circuit/formulas";
-import Timeline from "./timeline";
+import Playback from "./playback";
 import Library from "./library";
 import Editor from "./editor";
 import Inspector from "./inspector";
@@ -16,14 +16,8 @@ const CircuitLab = () => {
           <span class="brand-divider" />{" "}
           <span class="brand-description">Electricity playground</span>
         </div>
-        <div class="header-right">
-          <span class="live">
-            <span class="status-dot" /> LIVE SOLVER
-          </span>
-          <span class="version">RC</span>
-        </div>
+        <Playback />
       </header>
-      <Timeline />
       <div class="workspace">
         <Library />
         <Editor />

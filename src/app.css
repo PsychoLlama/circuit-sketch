@@ -102,18 +102,36 @@ header {
   font-weight: 400;
   letter-spacing: 0;
 }
-.header-right {
+.playback {
   display: flex;
-  gap: 24px;
   align-items: center;
+  gap: 6px;
 }
-.live {
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: #26795a;
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+.icon-button svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.playback .speed {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 4px;
+  margin: 0 0 0 4px;
+  font-size: 12px;
+}
+.playback .speed input {
+  box-sizing: border-box;
+  width: 84px;
+  height: 30px;
+  margin: 0;
+  padding-block: 0;
 }
 .status-dot {
   display: inline-block;
@@ -122,12 +140,6 @@ header {
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
-}
-.version {
-  font:
-    10px ui-monospace,
-    monospace;
-  color: #89918d;
 }
 .workspace {
   display: grid;
@@ -841,9 +853,6 @@ footer > span:last-child {
   .panel-heading {
     padding: 0 10px;
   }
-  .header-right .version {
-    display: none;
-  }
   .app-shell {
     min-width: 460px;
   }
@@ -1020,51 +1029,4 @@ footer > span:last-child {
   width: auto;
   min-width: 88px;
   padding: 4px 7px;
-}
-
-.timeline {
-  --control-height: 32px;
-
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 8px 12px;
-  padding: 10px 20px 12px;
-  border-bottom: 1px solid #dce1df;
-  font-size: 12px;
-}
-.timeline label {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-}
-.timeline input,
-.timeline select,
-.timeline button {
-  box-sizing: border-box;
-  height: var(--control-height);
-  margin: 0;
-  padding-block: 0;
-}
-.timeline input[type="number"] {
-  width: 110px;
-}
-.timeline p {
-  flex-basis: 100%;
-  margin: 0;
-  opacity: 0.7;
-}
-
-.timeline button {
-  padding-inline: 12px;
-  border: 1px solid #dce1df;
-  border-radius: 6px;
-  background: white;
-}
-.timeline strong {
-  display: flex;
-  align-items: center;
-  height: var(--control-height);
-  font-variant-numeric: tabular-nums;
-  min-width: 160px;
 }

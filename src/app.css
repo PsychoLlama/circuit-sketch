@@ -1023,17 +1023,28 @@ footer > span:last-child {
 }
 
 .timeline {
+  --control-height: 32px;
+
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
+  align-items: flex-end;
+  gap: 8px 12px;
+  padding: 10px 20px 12px;
   border-bottom: 1px solid #dce1df;
   font-size: 12px;
 }
 .timeline label {
   display: grid;
   gap: 4px;
+  margin: 0;
+}
+.timeline input,
+.timeline select,
+.timeline button {
+  box-sizing: border-box;
+  height: var(--control-height);
+  margin: 0;
+  padding-block: 0;
 }
 .timeline input[type="number"] {
   width: 110px;
@@ -1045,12 +1056,15 @@ footer > span:last-child {
 }
 
 .timeline button {
-  padding: 8px 12px;
+  padding-inline: 12px;
   border: 1px solid #dce1df;
   border-radius: 6px;
   background: white;
 }
 .timeline strong {
+  display: flex;
+  align-items: center;
+  height: var(--control-height);
   font-variant-numeric: tabular-nums;
   min-width: 160px;
 }

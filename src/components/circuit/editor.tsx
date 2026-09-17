@@ -59,8 +59,7 @@ const Editor = () => {
     <section class="editor">
       <div class="toolbar">
         <div class="circuit-title">
-          <span class="circuit-dot" /> Untitled circuit{" "}
-          <span class="tag">DC</span>
+          <span class="circuit-dot" /> Untitled circuit
         </div>
         <div class="toolbar-actions">
           <button

@@ -323,14 +323,6 @@ header {
   border-radius: 50%;
   background: #919c95;
 }
-.tag {
-  border: 1px solid #dfe5e0;
-  padding: 2px 4px;
-  font:
-    9px ui-monospace,
-    monospace;
-  color: #939c96;
-}
 .toolbar-actions {
   display: flex;
   align-items: center;

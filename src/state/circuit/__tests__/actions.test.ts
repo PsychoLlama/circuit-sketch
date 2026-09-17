@@ -634,8 +634,12 @@ describe("breadboard editing", () => {
 });
 
 describe("editor lifecycle", () => {
-  it("restores on mount and cleans up keyboard and resize listeners", async () => {
+  it("restores on mount, starts playing, and cleans up listeners", async () => {
     const stopKeys = vi.fn();
+    const stopFrames = vi.fn();
+    const frames = vi
+      .spyOn(effects, "observeFrames")
+      .mockReturnValue(stopFrames);
     const stopResize = vi.fn();
     const listen = vi.spyOn(effects, "listenForKeys").mockReturnValue(stopKeys);
     const observe = vi
@@ -654,6 +658,7 @@ describe("editor lifecycle", () => {
       await Promise.resolve();
       expect(read).toHaveBeenCalledTimes(1);
       expect(listen).toHaveBeenCalledExactlyOnceWith(key);
+      expect(frames).toHaveBeenCalledTimes(1);
       expect(observe).toHaveBeenCalledExactlyOnceWith(
         canvasElement,
         expect.any(Function),
@@ -671,6 +676,7 @@ describe("editor lifecycle", () => {
       dispose();
       expect(stopKeys).toHaveBeenCalledTimes(1);
       expect(stopResize).toHaveBeenCalledTimes(1);
+      expect(stopFrames).toHaveBeenCalledTimes(1);
     } finally {
       dispose();
       vi.restoreAllMocks();

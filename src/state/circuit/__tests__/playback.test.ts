@@ -25,7 +25,8 @@ describe("timestamp-anchored playback", () => {
   });
   it("keeps time continuous across speed changes, pause, resume, and seek", () => {
     const now = clock().mockReturnValue(1000);
-    togglePlayback();
+    expect(playback().running).toBe(true);
+    seekTime(0);
     setFrameTime(2000);
     expect(simulationTime()).toBeCloseTo(0.001);
     now.mockReturnValue(2000);

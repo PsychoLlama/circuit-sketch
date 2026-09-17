@@ -76,7 +76,7 @@ export const [requestedTime, setRequestedTime] = createResettableSignal(
   () => 0,
 );
 export const [playback, setPlayback] = createResettableSignal(() => ({
-  running: false,
+  running: true,
   speed: 0.001,
   wallAnchor: 0,
   timeAnchor: 0,

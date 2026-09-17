@@ -506,6 +506,7 @@ export const key = (e: KeyboardEvent) => {
 export const mountLab = () => {
   onMount(() => {
     restore();
+    seekTime(0);
     onCleanup(listenForKeys(key));
     createEffect(() => {
       if (playback().running) onCleanup(observeFrames(setFrameTime));

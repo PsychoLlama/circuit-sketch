@@ -105,7 +105,7 @@ header {
 .playback {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
 }
 .icon-button {
   display: grid;
@@ -113,20 +113,33 @@ header {
   width: 30px;
   height: 30px;
   padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+.icon-button:hover {
+  border-color: transparent;
+  background: #eef2ef;
 }
 .icon-button svg {
   width: 14px;
   height: 14px;
   fill: currentColor;
 }
-.playback .speed {
+.icon-button svg.stroked {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.playback .rate {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin: 0 0 0 4px;
-  font-size: 12px;
+  gap: 6px;
+  margin: 0 8px 0 0;
+  font-size: 11px;
 }
-.playback .speed input {
+.playback .rate input {
   box-sizing: border-box;
   width: 84px;
   height: 30px;

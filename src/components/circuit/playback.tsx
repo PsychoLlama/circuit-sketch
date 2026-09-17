@@ -4,6 +4,27 @@ import { changeSpeed, seekTime, togglePlayback } from "~/state/circuit/actions";
 
 const Playback = () => (
   <div class="playback" role="group" aria-label="Playback">
+    <label class="rate" title="Simulated seconds per real second">
+      Rate
+      <input
+        type="number"
+        min="0.000001"
+        step="any"
+        value={playback().speed}
+        onChange={(e) => changeSpeed(e.currentTarget.valueAsNumber)}
+      />
+    </label>
+    <button
+      class="icon-button"
+      aria-label="Reset to t = 0"
+      title="Reset to t = 0"
+      onClick={() => seekTime(0)}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true" class="stroked">
+        <path d="M2.75 8a5.25 5.25 0 1 0 1.54-3.71" />
+        <path d="M2.5 1.75v3h3" />
+      </svg>
+    </button>
     <button
       class="icon-button"
       aria-label={playback().running ? "Pause" : "Play"}
@@ -19,27 +40,6 @@ const Playback = () => (
         </Show>
       </svg>
     </button>
-    <button
-      class="icon-button"
-      aria-label="Reset to t = 0"
-      title="Reset to t = 0"
-      onClick={() => seekTime(0)}
-    >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M3 2.5h2v11H3zM13.5 2.5v11L6 8z" />
-      </svg>
-    </button>
-    <label class="speed" title="Simulated seconds per real second">
-      ×
-      <input
-        aria-label="Playback speed"
-        type="number"
-        min="0.000001"
-        step="any"
-        value={playback().speed}
-        onChange={(e) => changeSpeed(e.currentTarget.valueAsNumber)}
-      />
-    </label>
   </div>
 );
 

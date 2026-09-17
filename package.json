@@ -1,5 +1,5 @@
 {
-  "name": "electrical-interactive",
+  "name": "circuit-sketch",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.25.0",

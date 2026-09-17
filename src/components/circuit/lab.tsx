@@ -12,9 +12,9 @@ const CircuitLab = () => {
     <main class="app-shell" tabIndex={-1}>
       <header>
         <div class="brand">
-          <span class="brand-mark">ϟ</span> current
+          <span class="brand-mark">ϟ</span> Circuit Sketch
           <span class="brand-divider" />{" "}
-          <span class="brand-description">Circuit editor</span>
+          <span class="brand-description">Electricity playground</span>
         </div>
         <div class="header-right">
           <span class="live">

@@ -28,7 +28,7 @@ export const observeCanvas = (
   return () => observer.disconnect();
 };
 
-const storageKey = "current.circuit.v1";
+const storageKey = "circuit-sketch.circuit.v1";
 
 export const readCircuit = () => {
   try {

@@ -1,4 +1,4 @@
-# Current — an electricity playground
+# Circuit Sketch — an electricity playground
 
 Run `nix develop`, then `pnpm dev` (port 3000). `pnpm check` runs TypeScript, Vitest, formatting, and the production build. No additional packages or dependency build scripts are needed.
 

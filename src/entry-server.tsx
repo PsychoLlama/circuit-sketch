@@ -7,7 +7,7 @@ export default createHandler(() => (
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <title>Current · Circuit editor</title>
+          <title>Circuit Sketch · Electricity playground</title>
           {assets}
         </head>
         <body>

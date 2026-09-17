@@ -109,10 +109,12 @@ see [OpenStax RC circuits](https://openstax.org/books/university-physics-volume-
 
 Integration uses adaptive RK4 step doubling with local voltage error scaling
 `1e-11 V + 1e-9 × max(|Vold|, |Vnew|)`. This is a numerical approximation, not
-an exact exponential solver or a guarantee of global error. `createTransient`
-caches accepted steps as checkpoints; step sizes never depend on the requested
-time, so a query resumes from the latest checkpoint at or before it and returns
-the same result as a fresh query from the initial conditions, in any order.
+an exact exponential solver or a guarantee of global error. Step sizes never
+depend on the requested time, so accepted steps form one fixed sequence and a
+query returns the same result as a fresh query from the initial conditions, in
+any order. `createTransient` retains only the latest accepted step at or before
+the last query and its successor, so memory is constant; forward playback
+resumes from them and backward seeks restart from t = 0.
 There is a 10,000-attempt work limit; stiff or extreme-duration queries can fail
 with an explicit diagnostic. Failed islands expose no partial transient readings.
 

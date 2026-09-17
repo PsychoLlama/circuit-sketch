@@ -11,10 +11,10 @@ const initialStep = 1e-9;
  * variables derived only from the initial conditions. Each stage enforces
  * KCL/KVL and obtains dV/dt = I/C from a simultaneous network solve.
  *
- * Accepted steps never depend on a query time, so they are cached as
- * checkpoints. A query resumes from the latest checkpoint at or before its
- * time. The result depends only on the circuit and the time, never on query
- * order, while playback only integrates the newly elapsed interval.
+ * Step sizes never depend on a query time, so the accepted steps form one
+ * fixed sequence. A query finishes from the latest step at or before its time.
+ * Only that step and its successor are retained: playback reuses them, while
+ * a backward seek restarts from t = 0. Results depend only on circuit and time.
  */
 export const createTransient = (
   components: readonly Component[],
@@ -81,14 +81,9 @@ export const createTransient = (
     );
   };
 
-  // Advance until `time` is reached. Unclamped runs stay independent of the
-  // requested time, so every accepted step is a reusable checkpoint.
-  const integrate = (
-    from: Checkpoint,
-    time: number,
-    clamp: boolean,
-    accept: (checkpoint: Checkpoint) => void = () => {},
-  ): Checkpoint => {
+  // Advance until `time`. Unclamped steps stay independent of the requested
+  // time; clamped runs only finish a query and are never retained.
+  const integrate = (from: Checkpoint, time: number, clamp: boolean) => {
     let { t, v, h, attempts } = from;
 
     while (t < time) {
@@ -111,62 +106,57 @@ export const createTransient = (
 
       if (!Number.isFinite(error))
         throw new Error("Transient numerical range exceeded.");
-      const factor = Math.max(
-        0.1,
-        Math.min(2, error === 0 ? 2 : 0.9 * error ** -0.2),
-      );
-
+      h =
+        size *
+        Math.max(0.1, Math.min(2, error === 0 ? 2 : 0.9 * error ** -0.2));
       if (error <= 1) {
         v = half;
         t += size;
-        h = size * factor;
-        accept({ t, v, h, attempts });
-      } else h = size * factor;
+        if (!clamp) break;
+      }
     }
 
     return { t, v, h, attempts };
   };
 
-  const checkpoints: Checkpoint[] = [];
-  let failure: { time: number; message: string } | undefined;
-
   const message = (error: unknown) =>
     error instanceof Error ? error.message : String(error);
+
+  let initial: Checkpoint | undefined;
+  let failure: { time: number; message: string } | undefined;
 
   if (!invalid && capacitors.length) {
     const v = capacitors.map((c) => c.capacitor!.initialVoltage);
 
     try {
       evaluate(v, 0);
-      checkpoints.push({ t: 0, v, h: initialStep, attempts: 0 });
+      initial = { t: 0, v, h: initialStep, attempts: 0 };
     } catch (error) {
       failure = { time: -1, message: message(error) };
     }
   }
 
-  const extend = (time: number) => {
-    if (failure) return;
-    try {
-      integrate(checkpoints.at(-1)!, time, false, (checkpoint) =>
-        checkpoints.push(checkpoint),
-      );
-    } catch (error) {
-      failure = { time: checkpoints.at(-1)!.t, message: message(error) };
-    }
-  };
+  let current = initial;
+  let next: Checkpoint | undefined;
 
-  const latest = (time: number) => {
-    let low = 0;
-    let high = checkpoints.length - 1;
-
-    while (low < high) {
-      const mid = Math.ceil((low + high) / 2);
-
-      if (checkpoints[mid].t <= time) low = mid;
-      else high = mid - 1;
+  // Move `current` to the latest unclamped step at or before `time`.
+  const seek = (time: number) => {
+    if (current!.t > time) {
+      current = initial;
+      next = undefined;
     }
 
-    return checkpoints[low];
+    while (current!.t < time) {
+      try {
+        next ??= integrate(current!, Infinity, false);
+      } catch (error) {
+        failure = { time: current!.t, message: message(error) };
+        return;
+      }
+      if (next.t > time) return;
+      current = next;
+      next = undefined;
+    }
   };
 
   return (time) => {
@@ -186,11 +176,12 @@ export const createTransient = (
       );
     if (!capacitors.length) return analyze(components, analysis, reference);
 
-    extend(time);
+    if (failure && failure.time < time) return fail(failure.message);
+    seek(time);
     if (failure && failure.time < time) return fail(failure.message);
 
     try {
-      const { v } = integrate(latest(time), time, true);
+      const { v } = integrate(current!, time, true);
 
       return evaluate(v, time).snapshot;
     } catch (error) {

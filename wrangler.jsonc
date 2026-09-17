@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "circuit-sketch",
+  "compatibility_date": "2026-09-01",
+  // Assets-only Worker: the build prerenders everything under `.output/public`.
+  "assets": {
+    "directory": ".output/public",
+  },
+  // No custom domain. Served from the account's `*.workers.dev` subdomain.
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true,
+  },
+}

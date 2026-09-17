@@ -37,6 +37,8 @@
 - `pnpm fmt`: format files. (Automatic via agent post-edit hooks.)
 - `pnpm build`: production build.
 - `pnpm dev`: development server.
+- `pnpm preview`: serve the production build with `wrangler dev`.
+- `pnpm run deploy`: run checks, then deploy to Cloudflare. Only when asked.
 
 ## Rules
 

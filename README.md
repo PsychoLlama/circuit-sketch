@@ -1,6 +1,12 @@
 # Circuit Sketch — an electricity playground
 
-Run `nix develop`, then `pnpm dev` (port 3000). `pnpm check` runs TypeScript, Vitest, formatting, and the production build. No additional packages or dependency build scripts are needed.
+Run `nix develop`, then `pnpm dev` (port 3000). `pnpm check` runs TypeScript, Vitest, formatting, and the production build.
+
+## Deploying
+
+The build prerenders a static site to `.output/public`, served by an assets-only Cloudflare Worker on the account's `workers.dev` subdomain (`wrangler.jsonc`). `pnpm preview` serves the build locally with `wrangler dev`; `pnpm run deploy` (not `pnpm deploy`, a pnpm built-in) runs `pnpm check` and then `wrangler deploy`. Authenticate once with `pnpm exec wrangler login`.
+
+On NixOS, use `nix develop .#nixos` (the `.envrc` default). It supplies what `bin/patch-workerd.nu` needs to repoint workerd's prebuilt binary at the Nix glibc; run by `pnpm install` via `prepare`.
 
 ## Using the editor
 

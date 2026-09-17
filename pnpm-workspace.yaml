@@ -1,5 +1,9 @@
 # No dependency build scripts are approved. Ask the user before adding approvals.
-allowBuilds: {}
+allowBuilds:
+  # Postinstall scripts only swap JS shims for native binaries (a startup
+  # optimization). Both still resolve their platform packages without them.
+  esbuild: false
+  workerd: false
 minimumReleaseAgeExclude:
   - "@vitest/mocker@5.0.1"
   - "@vitest/spy@5.0.1"

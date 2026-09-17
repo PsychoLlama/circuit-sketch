@@ -12,6 +12,8 @@ export default defineConfig({
       // errors still surface via the plain error boundary and console.
       devOverlay: false,
     }),
-    nitro(),
+    // Prerendered to static assets and served by a Cloudflare Worker with no
+    // server code. See `wrangler.jsonc`.
+    nitro({ preset: "static" }),
   ],
 });

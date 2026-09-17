@@ -7,15 +7,17 @@
     "node": ">=24"
   },
   "scripts": {
+    "prepare": "bin/patch-workerd.nu",
     "dev": "vite",
     "build": "vite build",
-    "start": "node .output/server/index.mjs",
+    "preview": "wrangler dev",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "fmt": "treefmt",
     "fmt:check": "treefmt --fail-on-change",
-    "check": "./bin/run-tests"
+    "check": "./bin/run-tests",
+    "deploy": "bin/deploy"
   },
   "dependencies": {
     "@solidjs/router": "1.0.0",
@@ -29,6 +31,7 @@
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vite": "8.3.0",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "wrangler": "4.132.0"
   }
 }
